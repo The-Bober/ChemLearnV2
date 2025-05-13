@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Question, QuestionOption } from "@/types";
@@ -13,7 +12,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, PlusCircle } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import type { QuizFormData } from "./quiz-form"; // Assuming QuizFormData is defined in quiz-form
+import type { QuizFormData } from "./quiz-form"; 
 
 interface QuestionFormProps {
   questionIndex: number;
@@ -21,7 +20,7 @@ interface QuestionFormProps {
 }
 
 export function QuestionForm({ questionIndex, removeQuestion }: QuestionFormProps) {
-  const { control, watch, setValue } = useFormContext<QuizFormData>(); // Use QuizFormData type
+  const { control, watch, setValue } = useFormContext<QuizFormData>(); 
 
   const questionType = watch(`questions.${questionIndex}.type`);
 
@@ -32,26 +31,31 @@ export function QuestionForm({ questionIndex, removeQuestion }: QuestionFormProp
 
   const handleQuestionTypeChange = (value: "true_false" | "multiple_choice") => {
     setValue(`questions.${questionIndex}.type`, value);
+    const currentOptions = watch(`questions.${questionIndex}.options`);
+    
     if (value === "true_false") {
-      setValue(`questions.${questionIndex}.options`, []); // Clear options for true/false
-      setValue(`questions.${questionIndex}.correctAnswer`, 'true'); // Default for true/false
-    } else {
-      // For multiple_choice, ensure at least two options exist, set first as correct by default
-      const currentOptions = watch(`questions.${questionIndex}.options`);
+      // For True/False, options are implicitly True and False, clear custom options.
+      setValue(`questions.${questionIndex}.options`, []); 
+      setValue(`questions.${questionIndex}.correctAnswer`, 'true'); // Default correct answer
+    } else { // multiple_choice
+      // Ensure at least two options exist for multiple choice
       if (!currentOptions || currentOptions.length < 2) {
         const newOptions = [
             { id: uuidv4(), text: "" },
             { id: uuidv4(), text: "" }
         ];
         setValue(`questions.${questionIndex}.options`, newOptions);
-        setValue(`questions.${questionIndex}.correctAnswer`, newOptions[0].id);
+        setValue(`questions.${questionIndex}.correctAnswer`, newOptions[0].id); // Default to first option
       } else {
-         setValue(`questions.${questionIndex}.correctAnswer`, currentOptions[0].id);
+        // If options exist, ensure a correct answer is set (or default to first if none)
+        const correctAnswer = watch(`questions.${questionIndex}.correctAnswer`);
+        if (!correctAnswer || !currentOptions.some(opt => opt.id === correctAnswer)) {
+            setValue(`questions.${questionIndex}.correctAnswer`, currentOptions[0].id);
+        }
       }
     }
   };
   
-  const currentOptions = watch(`questions.${questionIndex}.options`);
 
   return (
     <Card className="mb-4 p-4 border border-border">
@@ -84,7 +88,7 @@ export function QuestionForm({ questionIndex, removeQuestion }: QuestionFormProp
           render={({ field }) => (
             <FormItem>
               <FormLabel>Question Type</FormLabel>
-              <Select onValueChange={(value: "true_false" | "multiple_choice") => handleQuestionTypeChange(value)} defaultValue={field.value}>
+              <Select onValueChange={(value: "true_false" | "multiple_choice") => { field.onChange(value); handleQuestionTypeChange(value); }} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select question type" />
@@ -102,40 +106,53 @@ export function QuestionForm({ questionIndex, removeQuestion }: QuestionFormProp
 
         {questionType === "multiple_choice" && (
           <div className="space-y-3">
-            <FormLabel>Options</FormLabel>
-            {optionsFields.map((optionField, optionIndex) => (
-              <div key={optionField.id} className="flex items-center gap-2 p-2 border rounded-md">
-                <Controller
-                  name={`questions.${questionIndex}.correctAnswer`}
-                  control={control}
-                  render={({ field: radioField }) => (
-                    <RadioGroupItem 
-                      value={optionField.id} 
-                      id={`${questionIndex}-opt-${optionField.id}`} 
-                      checked={radioField.value === optionField.id}
-                      onClick={() => radioField.onChange(optionField.id)}
-                      className="mr-2"
-                      aria-label={`Set option ${optionIndex + 1} as correct`}
-                    />
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name={`questions.${questionIndex}.options.${optionIndex}.text`}
-                  render={({ field }) => (
-                    <FormItem className="flex-grow">
-                       <FormControl>
-                        <Input placeholder={`Option ${optionIndex + 1}`} {...field} />
+            <FormLabel>Options (Select Correct Answer)</FormLabel>
+            <Controller
+              name={`questions.${questionIndex}.correctAnswer`}
+              control={control}
+              render={({ field: radioGroupField }) => (
+                <RadioGroup
+                  value={radioGroupField.value}
+                  onValueChange={radioGroupField.onChange}
+                  className="space-y-2"
+                >
+                  {optionsFields.map((optionField, optionIndex) => (
+                    <FormItem key={optionField.id} className="flex items-center gap-2 p-2 border rounded-md">
+                      <FormControl>
+                        <RadioGroupItem
+                          value={optionField.id}
+                          id={`q-${questionIndex}-opt-${optionField.id}`}
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <Label htmlFor={`q-${questionIndex}-opt-${optionField.id}`} className="flex-grow cursor-pointer">
+                        <FormField
+                          control={control}
+                          name={`questions.${questionIndex}.options.${optionIndex}.text`}
+                          render={({ field: inputField }) => (
+                            // No nested FormItem needed here for simplicity, FormMessage will be picked up by RHF
+                            <>
+                              <FormControl>
+                                <Input placeholder={`Option ${optionIndex + 1}`} {...inputField} />
+                              </FormControl>
+                              <FormMessage /> 
+                            </>
+                          )}
+                        />
+                      </Label>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(optionIndex)} disabled={optionsFields.length <= 2}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </FormItem>
-                  )}
-                />
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(optionIndex)} disabled={optionsFields.length <= 2}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+                  ))}
+                </RadioGroup>
+              )}
+            />
+            {/* Display validation message for the correctAnswer field itself */}
+             <FormField
+              control={control}
+              name={`questions.${questionIndex}.correctAnswer`}
+              render={({ fieldState }) => <FormMessage>{fieldState.error?.message}</FormMessage>}
+            />
             <Button
               type="button"
               variant="outline"
@@ -144,9 +161,6 @@ export function QuestionForm({ questionIndex, removeQuestion }: QuestionFormProp
             >
               <PlusCircle className="h-4 w-4 mr-1" /> Add Option
             </Button>
-             {currentOptions && currentOptions.length > 0 && !watch(`questions.${questionIndex}.correctAnswer`) && (
-                <p className="text-sm text-destructive">Please select a correct answer.</p>
-            )}
           </div>
         )}
 
@@ -160,20 +174,20 @@ export function QuestionForm({ questionIndex, removeQuestion }: QuestionFormProp
                 <FormControl>
                   <RadioGroup
                     onValueChange={field.onChange}
-                    defaultValue={field.value || "true"}
+                    value={field.value || "true"} // Ensure value is controlled
                     className="flex space-x-4"
                   >
                     <FormItem className="flex items-center space-x-2">
                       <FormControl>
-                        <RadioGroupItem value="true" id={`${questionIndex}-true`} />
+                        <RadioGroupItem value="true" id={`q-${questionIndex}-true`} />
                       </FormControl>
-                      <FormLabel htmlFor={`${questionIndex}-true`} className="font-normal">True</FormLabel>
+                      <FormLabel htmlFor={`q-${questionIndex}-true`} className="font-normal">True</FormLabel>
                     </FormItem>
                     <FormItem className="flex items-center space-x-2">
                       <FormControl>
-                        <RadioGroupItem value="false" id={`${questionIndex}-false`} />
+                        <RadioGroupItem value="false" id={`q-${questionIndex}-false`} />
                       </FormControl>
-                      <FormLabel htmlFor={`${questionIndex}-false`} className="font-normal">False</FormLabel>
+                      <FormLabel htmlFor={`q-${questionIndex}-false`} className="font-normal">False</FormLabel>
                     </FormItem>
                   </RadioGroup>
                 </FormControl>
