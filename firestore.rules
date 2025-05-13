@@ -1,12 +1,39 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access to all documents for any authenticated user.
-    // WARNING: These rules are very permissive and are generally not suitable for production.
-    // Use these for development and testing, and then implement more granular rules based on your application's needs.
+    // Allow read and write access to any document if the user is authenticated
     match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Specific rules for user data (optional, but good practice)
+    // This allows a user to read and write their own data in the 'users' collection
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Specific rules for admin management of user data (optional)
+    // This allows an admin to read any user's data
+    match /users/{userId} {
+        allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // More specific rules for lectures, lessons, quizzes, activities, and userQuizCompletions
+    // allowing any authenticated user to read and write for now.
+    match /lectures/{lectureId} {
+      allow read, write: if request.auth != null;
+    }
+    match /lessons/{lessonId} {
+      allow read, write: if request.auth != null;
+    }
+    match /quizzes/{quizId} {
+      allow read, write: if request.auth != null;
+    }
+    match /activities/{activityId} {
+      allow read, write: if request.auth != null;
+    }
+    match /userQuizCompletions/{completionId} {
       allow read, write: if request.auth != null;
     }
   }
