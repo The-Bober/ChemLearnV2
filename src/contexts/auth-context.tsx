@@ -11,6 +11,7 @@ import {
   signOut as firebaseSignOut 
 } from 'firebase/auth';
 import type { PropsWithChildren } from 'react';
+import { logActivity } from '@/services/activityService'; // Import activity logger
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -70,8 +71,11 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       setUser(userCredential.user);
-      setIsAdmin(userCredential.user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL); // Should be false for new users unless it's the admin email
+      setIsAdmin(userCredential.user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL);
       setLoading(false);
+      if (userCredential.user) {
+        await logActivity('user_registered', `User "${userCredential.user.email}" registered.`, userCredential.user.uid, userCredential.user.uid);
+      }
       return userCredential.user;
     } catch (e) {
       const authError = e as AuthError;

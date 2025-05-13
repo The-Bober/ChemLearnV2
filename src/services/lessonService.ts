@@ -17,7 +17,8 @@ import {
   type WriteBatch,
 } from 'firebase/firestore';
 import type { Lesson, LessonFormData, Lecture } from '@/types';
-import { deleteQuizzesByLessonId, getQuizByLessonId } from './quizService';
+import { deleteQuizzesByLessonId } from './quizService';
+import { logActivity } from './activityService'; // Import activity logger
 
 const lessonsCollection = collection(db, 'lessons');
 const lecturesCollection = collection(db, 'lectures');
@@ -41,6 +42,7 @@ export async function addLesson(data: LessonFormData): Promise<string> {
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
+  await logActivity('lesson_created', `Lesson "${data.title}" was created.`, docRef.id);
   return docRef.id;
 }
 
@@ -50,9 +52,14 @@ export async function updateLesson(id: string, data: Partial<LessonFormData>): P
     ...data,
     updatedAt: Timestamp.now(),
   });
+  const title = data.title || (await getLessonById(id))?.title || 'Unknown Lesson';
+  await logActivity('lesson_updated', `Lesson "${title}" was updated.`, id);
 }
 
 export async function deleteLesson(lessonId: string, existingBatch?: WriteBatch): Promise<void> {
+  const lesson = await getLessonById(lessonId);
+  const title = lesson?.title || 'Unknown Lesson';
+
   const batch = existingBatch || writeBatch(db);
   const lessonRef = doc(db, 'lessons', lessonId);
   batch.delete(lessonRef);
@@ -61,6 +68,11 @@ export async function deleteLesson(lessonId: string, existingBatch?: WriteBatch)
 
   if (!existingBatch) {
     await batch.commit();
+  }
+  // Log only if not part of a larger batch operation (like deleting a lecture)
+  // to avoid duplicate/confusing logs. The lecture deletion will log the overall action.
+  if (!existingBatch) {
+    await logActivity('lesson_deleted', `Lesson "${title}" and its quizzes were deleted.`, lessonId);
   }
 }
 
@@ -72,8 +84,8 @@ export async function deleteLessonsByLectureId(lectureId: string, existingBatch?
   const deletePromises: Promise<void>[] = [];
   lessonsSnapshot.forEach(lessonDoc => {
     batch.delete(lessonDoc.ref);
-    // For each lesson, also delete its associated quizzes
     deletePromises.push(deleteQuizzesByLessonId(lessonDoc.id, batch));
+    // Individual lesson deletion logs are skipped here; covered by deleteLecture log.
   });
   await Promise.all(deletePromises);
 
@@ -86,8 +98,6 @@ export async function getAllLessonsEnriched(): Promise<(Lesson & { lectureTitle?
     const q = query(lessonsCollection, orderBy('lectureId'), orderBy('order'));
     const lessonSnapshot = await getDocs(q);
     const lessons: (Lesson & { lectureTitle?: string })[] = [];
-
-    // Cache lecture titles to avoid multiple fetches for the same lecture
     const lectureTitlesCache: Record<string, string> = {};
 
     for (const lessonDoc of lessonSnapshot.docs) {

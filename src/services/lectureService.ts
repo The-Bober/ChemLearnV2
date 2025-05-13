@@ -12,12 +12,12 @@ import {
   query,
   orderBy,
   writeBatch,
-  where,
   Timestamp,
 } from 'firebase/firestore';
-import type { Lecture, LectureFormData } from '@/types'; // Assuming LectureFormData exists or is similar to Lecture input
-import { getLessonsByLectureId, deleteLessonsByLectureId } from './lessonService'; // For cascading deletes/counts
+import type { Lecture, LectureFormData } from '@/types';
+import { getLessonsByLectureId, deleteLessonsByLectureId } from './lessonService';
 import { deleteQuizzesByLectureId } from './quizService';
+import { logActivity } from './activityService'; // Import activity logger
 
 const lecturesCollection = collection(db, 'lectures');
 
@@ -50,6 +50,7 @@ export async function addLecture(data: LectureFormData): Promise<string> {
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
+  await logActivity('lecture_created', `Lecture "${data.title}" was created.`, docRef.id);
   return docRef.id;
 }
 
@@ -59,20 +60,21 @@ export async function updateLecture(id: string, data: Partial<LectureFormData>):
     ...data,
     updatedAt: Timestamp.now(),
   });
+  // Fetch the lecture title if not in data, or use a placeholder.
+  const title = data.title || (await getLectureById(id))?.title || 'Unknown Lecture';
+  await logActivity('lecture_updated', `Lecture "${title}" was updated.`, id);
 }
 
 export async function deleteLecture(lectureId: string): Promise<void> {
-  const batch = writeBatch(db);
+  const lecture = await getLectureById(lectureId);
+  const title = lecture?.title || 'Unknown Lecture';
 
-  // Delete the lecture itself
+  const batch = writeBatch(db);
   const lectureRef = doc(db, 'lectures', lectureId);
   batch.delete(lectureRef);
-
-  // Delete associated lessons (and their quizzes)
   await deleteLessonsByLectureId(lectureId, batch);
-  
-  // Delete quizzes associated directly with the lecture
   await deleteQuizzesByLectureId(lectureId, batch);
-
   await batch.commit();
+
+  await logActivity('lecture_deleted', `Lecture "${title}" and its associated content were deleted.`, lectureId);
 }

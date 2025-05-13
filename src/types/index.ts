@@ -97,3 +97,24 @@ export interface QuizFormShape extends Omit<Quiz, 'id' | 'createdAt' | 'updatedA
   questions: Question[]; // Use the actual Question type
 }
 
+export type ActivityType = 
+  | "lecture_created" 
+  | "lecture_updated" 
+  | "lecture_deleted"
+  | "lesson_created"
+  | "lesson_updated"
+  | "lesson_deleted"
+  | "quiz_created"
+  | "quiz_updated"
+  | "quiz_deleted"
+  | "user_registered"
+  | "quiz_taken";
+
+export interface Activity {
+  id: string;
+  type: ActivityType;
+  message: string; // e.g., "Lecture 'Introduction to Chemistry' created."
+  timestamp: Timestamp;
+  relatedId?: string; // ID of the lecture, lesson, quiz, or user
+  userId?: string; // ID of the user performing the action (if applicable)
+}
