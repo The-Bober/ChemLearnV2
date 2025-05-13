@@ -11,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User, Settings, CreditCard, LogIn, UserPlus } from "lucide-react";
@@ -83,26 +82,23 @@ export function UserNav() {
           <DropdownMenuItem disabled> {/* Placeholder */}
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
-            <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem disabled> {/* Placeholder */}
             <CreditCard className="mr-2 h-4 w-4" />
             <span>Billing</span>
-            <DropdownMenuShortcut>⌘B</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem disabled> {/* Placeholder */}
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
-            <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
-          <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+

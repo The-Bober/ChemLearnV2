@@ -1,54 +1,56 @@
+
 export interface Lecture {
   id: string;
   title: string;
   description: string;
-  order: number;
-  imageUrl?: string; // Optional image for the lecture card
-  lessonsCount?: number; // To display on lecture card
+  order: number; // Added for ordering lectures
+  imageUrl?: string;
+  lessonsCount?: number; // Calculated or maintained
 }
 
 export type LessonContentType = "text" | "formula" | "image" | "video";
 
 export interface LessonContentBlock {
+  id: string; // Added for keying in UI if dynamic
   type: LessonContentType;
-  value: string; // Text content, formula string, image URL, or video embed URL/ID
-  altText?: string; // For images
+  value: string;
+  altText?: string;
 }
 
 export interface Lesson {
   id:string;
-  lectureId: string;
+  lectureId: string; // To associate with a lecture
   title: string;
-  order: number;
-  content: LessonContentBlock[]; // Structured content
-  estimatedTimeMinutes?: number; // Optional: estimated time to complete lesson
+  order: number; // Added for ordering lessons within a lecture
+  content: LessonContentBlock[];
+  estimatedTimeMinutes?: number;
 }
 
 export type QuestionType = "true_false" | "multiple_choice";
 
 export interface QuestionOption {
-  id: string;
+  id: string; // e.g., "opt1", "opt2"
   text: string;
 }
 
 export interface Question {
-  id: string;
-  quizId?: string; // A question might belong to a quiz directly
-  lessonId?: string; // Or be associated with a lesson for ad-hoc practice
+  id: string; // e.g., "q1", "q2"
+  quizId?: string; 
+  lessonId?: string;
   text: string;
   type: QuestionType;
-  options: QuestionOption[]; // For multiple_choice, empty for true_false
-  correctAnswer: string; // For true_false, "true" or "false". For MC, the id of the correct QuestionOption.
-  explanation?: string; // Optional explanation for the answer
+  options: QuestionOption[];
+  correctAnswer: string; // For true_false: "true" or "false". For MC: id of the correct QuestionOption.
+  explanation?: string;
 }
 
 export interface Quiz {
   id: string;
-  lessonId?: string; // Quiz associated with a lesson
-  lectureId?: string; // Quiz associated with a lecture (e.g., end-of-lecture quiz)
+  lessonId?: string;
+  lectureId?: string;
   title: string;
   description?: string;
-  questions: Question[]; // Embedded questions or array of question IDs
+  questions: Question[]; // Embedded questions
 }
 
 // For AI Quiz Generation
@@ -60,3 +62,4 @@ export interface AIQuestion extends Omit<Question, 'id' | 'quizId' | 'lessonId' 
 export interface AIQuizOutput {
   questions: AIQuestion[];
 }
+
