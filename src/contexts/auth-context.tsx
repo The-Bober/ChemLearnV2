@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { User as FirebaseUser, AuthError } from 'firebase/auth';
@@ -45,8 +44,9 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       try {
         const count = await getUserCompletedQuizzesCount(currentUser.uid);
         setCompletedQuizzesCount(count);
-      } catch (e) {
-        console.error("Failed to fetch completed quizzes count", e);
+      } catch (e: any) {
+        console.error("Failed to fetch completed quizzes count:", e);
+        setError(`Error fetching quiz count: ${e.message} (Code: ${e.code})`);
         setCompletedQuizzesCount(0); // Default to 0 on error
       } finally {
         setLoadingCompletedQuizzesCount(false);
@@ -62,32 +62,39 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        const isEmailAdmin = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+        try {
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          const isEmailAdmin = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
-        if (userDocSnap.exists()) {
-          if (isEmailAdmin && userDocSnap.data().isAdmin !== true) {
-            await setDoc(userDocRef, { isAdmin: true }, { merge: true });
-            setIsAdmin(true);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            if (isEmailAdmin && userData.isAdmin !== true) {
+              await setDoc(userDocRef, { isAdmin: true }, { merge: true });
+              setIsAdmin(true);
+            } else {
+              setIsAdmin(userData.isAdmin === true);
+            }
           } else {
-            setIsAdmin(userDocSnap.data().isAdmin === true);
+            await setDoc(userDocRef, {
+              email: firebaseUser.email,
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+              photoURL: firebaseUser.photoURL || '',
+              isAdmin: isEmailAdmin,
+              createdAt: Timestamp.now(),
+            });
+            setIsAdmin(isEmailAdmin);
           }
-        } else {
-          await setDoc(userDocRef, {
-            email: firebaseUser.email,
-            uid: firebaseUser.uid,
-            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
-            photoURL: firebaseUser.photoURL || '',
-            isAdmin: isEmailAdmin,
-            createdAt: Timestamp.now(),
-          });
-          setIsAdmin(isEmailAdmin);
+          await fetchUserStats(firebaseUser); 
+        } catch (firestoreError: any) {
+          console.error("Firestore error during user profile setup in AuthProvider:", firestoreError);
+          setError(`Firestore setup error: ${firestoreError.message} (Code: ${firestoreError.code})`);
+          setIsAdmin(false); // Reset admin status on error
         }
-        await fetchUserStats(firebaseUser); // Fetch stats after user is set
       } else {
         setIsAdmin(false);
-        await fetchUserStats(null); // Clear stats if no user
+        await fetchUserStats(null); 
       }
       setLoading(false);
     });
@@ -103,12 +110,12 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const firebaseUser = userCredential.user;
-      // onAuthStateChanged will handle setting user, isAdmin, and fetching stats
       setLoading(false);
       return firebaseUser;
     } catch (e) {
       const authError = e as AuthError;
-      setError(authError.message);
+      console.error("Sign in error:", authError);
+      setError(`Sign in failed: ${authError.message} (Code: ${authError.code})`);
       setLoading(false);
       return null;
     }
@@ -132,13 +139,12 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
         isAdmin: isAdminUser,
         createdAt: Timestamp.now(),
       });
-      // onAuthStateChanged will handle setting user, isAdmin, and fetching stats
       setLoading(false);
       await logActivity('user_registered', `User "${firebaseUser.email}" registered.`, firebaseUser.uid, firebaseUser.uid);
       return firebaseUser;
-    } catch (e) {
-      const authError = e as AuthError;
-      setError(authError.message);
+    } catch (e: any) { // Catch 'any' for broader error type checking from Firestore or Auth
+      console.error("Sign up error:", e);
+      setError(`Sign up failed: ${e.message} (Code: ${e.code})`);
       setLoading(false);
       return null;
     }
@@ -149,12 +155,11 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setError(null);
     try {
       await firebaseSignOut(auth);
-      // onAuthStateChanged will handle resetting user, isAdmin, and stats
     } catch (e) {
         const authError = e as AuthError;
-        setError(authError.message);
+        console.error("Sign out error:", authError);
+        setError(`Sign out failed: ${authError.message} (Code: ${authError.code})`);
     } 
-    // setLoading will be handled by onAuthStateChanged
   };
 
   const refreshCompletedQuizzesCount = useCallback(async () => {
@@ -187,3 +192,4 @@ export function useAuth(): AuthContextType {
   }
   return context;
 }
+
