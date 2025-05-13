@@ -62,7 +62,7 @@ export default async function AdminDashboardPage() {
                     <div className="flex justify-between items-start">
                       <span className="flex-1">{activity.message}</span>
                       <span className="text-xs text-muted-foreground/70 whitespace-nowrap ml-2">
-                        {formatDistanceToNow(activity.timestamp.toDate(), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                       </span>
                     </div>
                   </li>
@@ -99,3 +99,4 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
+

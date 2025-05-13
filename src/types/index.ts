@@ -8,8 +8,8 @@ export interface Lecture {
   order: number; 
   imageUrl?: string;
   lessonsCount?: number; 
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string; // Changed from Timestamp
+  updatedAt?: string; // Changed from Timestamp
 }
 
 // Used for forms, omits id and calculated fields
@@ -32,8 +32,8 @@ export interface Lesson {
   order: number; 
   content: LessonContentBlock[];
   estimatedTimeMinutes?: number;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string; // Changed from Timestamp
+  updatedAt?: string; // Changed from Timestamp
 }
 
 export interface LessonFormData extends Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'> {}
@@ -65,8 +65,8 @@ export interface Quiz {
   description?: string;
   questions: Question[]; 
   durationMinutes?: number; 
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string; // Changed from Timestamp
+  updatedAt?: string; // Changed from Timestamp
 }
 
 // For AI Quiz Generation
@@ -114,7 +114,7 @@ export interface Activity {
   id: string;
   type: ActivityType;
   message: string; // e.g., "Lecture 'Introduction to Chemistry' created."
-  timestamp: Timestamp;
+  timestamp: string; // Changed from Timestamp
   relatedId?: string; // ID of the lecture, lesson, quiz, or user
   userId?: string; // ID of the user performing the action (if applicable)
 }
@@ -124,5 +124,6 @@ export interface UserQuizCompletion {
   userId: string;
   quizId: string;
   score: number; // Percentage score
-  completedAt: Timestamp;
+  completedAt: string; // Changed from Timestamp
 }
+

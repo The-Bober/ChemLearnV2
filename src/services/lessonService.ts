@@ -23,17 +23,27 @@ import { logActivity } from './activityService'; // Import activity logger
 const lessonsCollection = collection(db, 'lessons');
 const lecturesCollection = collection(db, 'lectures');
 
+// Helper to convert Firestore data with Timestamps to serializable Lesson
+function toSerializableLesson(docSnap: any): Lesson {
+  const data = docSnap.data() as Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp };
+  return {
+    ...data,
+    id: docSnap.id,
+    createdAt: data.createdAt?.toDate().toISOString(),
+    updatedAt: data.updatedAt?.toDate().toISOString(),
+  };
+}
 
 export async function getLessonsByLectureId(lectureId: string): Promise<Lesson[]> {
   const q = query(lessonsCollection, where('lectureId', '==', lectureId), orderBy('order'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(docSnap => ({ ...docSnap.data(), id: docSnap.id } as Lesson));
+  return snapshot.docs.map(docSnap => toSerializableLesson(docSnap));
 }
 
 export async function getLessonById(id: string): Promise<Lesson | null> {
   const docRef = doc(db, 'lessons', id);
   const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? ({ ...docSnap.data(), id: docSnap.id } as Lesson) : null;
+  return docSnap.exists() ? toSerializableLesson(docSnap) : null;
 }
 
 export async function addLesson(data: LessonFormData): Promise<string> {
@@ -52,13 +62,14 @@ export async function updateLesson(id: string, data: Partial<LessonFormData>): P
     ...data,
     updatedAt: Timestamp.now(),
   });
-  const title = data.title || (await getLessonById(id))?.title || 'Unknown Lesson';
+  const lessonAfterUpdate = await getDoc(docRef);
+  const title = data.title || (lessonAfterUpdate.exists() ? (lessonAfterUpdate.data() as Lesson).title : 'Unknown Lesson');
   await logActivity('lesson_updated', `Lesson "${title}" was updated.`, id);
 }
 
 export async function deleteLesson(lessonId: string, existingBatch?: WriteBatch): Promise<void> {
-  const lesson = await getLessonById(lessonId);
-  const title = lesson?.title || 'Unknown Lesson';
+  const lessonDoc = await getDoc(doc(db, 'lessons', lessonId));
+  const title = lessonDoc.exists() ? (lessonDoc.data() as Lesson).title : 'Unknown Lesson';
 
   const batch = existingBatch || writeBatch(db);
   const lessonRef = doc(db, 'lessons', lessonId);
@@ -101,7 +112,7 @@ export async function getAllLessonsEnriched(): Promise<(Lesson & { lectureTitle?
     const lectureTitlesCache: Record<string, string> = {};
 
     for (const lessonDoc of lessonSnapshot.docs) {
-        const lessonData = lessonDoc.data() as Lesson;
+        const lessonData = toSerializableLesson(lessonDoc);
         let lectureTitle = 'N/A';
         if (lessonData.lectureId) {
             if (lectureTitlesCache[lessonData.lectureId]) {
@@ -115,7 +126,7 @@ export async function getAllLessonsEnriched(): Promise<(Lesson & { lectureTitle?
                 }
             }
         }
-        lessons.push({ ...lessonData, id: lessonDoc.id, lectureTitle });
+        lessons.push({ ...lessonData, lectureTitle });
     }
     return lessons;
 }
@@ -125,3 +136,4 @@ export async function getLecturesForSelect(): Promise<Pick<Lecture, 'id' | 'titl
   const snapshot = await getDocs(q);
   return snapshot.docs.map(docSnap => ({ id: docSnap.id, title: docSnap.data().title as string }));
 }
+

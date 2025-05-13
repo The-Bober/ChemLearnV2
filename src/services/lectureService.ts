@@ -21,14 +21,25 @@ import { logActivity } from './activityService'; // Import activity logger
 
 const lecturesCollection = collection(db, 'lectures');
 
+// Helper to convert Firestore data with Timestamps to serializable Lecture
+function toSerializableLecture(docSnap: any, lessonsCount: number): Lecture {
+  const data = docSnap.data() as Omit<Lecture, 'id' | 'lessonsCount' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp };
+  return {
+    ...data,
+    id: docSnap.id,
+    lessonsCount,
+    createdAt: data.createdAt?.toDate().toISOString(),
+    updatedAt: data.updatedAt?.toDate().toISOString(),
+  };
+}
+
 export async function getAllLectures(): Promise<Lecture[]> {
   const q = query(lecturesCollection, orderBy('order'));
   const snapshot = await getDocs(q);
   const lectures: Lecture[] = [];
   for (const docSnap of snapshot.docs) {
-    const data = docSnap.data() as Omit<Lecture, 'id' | 'lessonsCount'>;
     const lessons = await getLessonsByLectureId(docSnap.id);
-    lectures.push({ ...data, id: docSnap.id, lessonsCount: lessons.length });
+    lectures.push(toSerializableLecture(docSnap, lessons.length));
   }
   return lectures;
 }
@@ -37,9 +48,8 @@ export async function getLectureById(id: string): Promise<Lecture | null> {
   const docRef = doc(db, 'lectures', id);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
-    const data = docSnap.data() as Omit<Lecture, 'id' | 'lessonsCount'>;
     const lessons = await getLessonsByLectureId(id);
-    return { ...data, id: docSnap.id, lessonsCount: lessons.length };
+    return toSerializableLecture(docSnap, lessons.length);
   }
   return null;
 }
@@ -61,13 +71,14 @@ export async function updateLecture(id: string, data: Partial<LectureFormData>):
     updatedAt: Timestamp.now(),
   });
   // Fetch the lecture title if not in data, or use a placeholder.
-  const title = data.title || (await getLectureById(id))?.title || 'Unknown Lecture';
+  const lectureAfterUpdate = await getDoc(docRef);
+  const title = data.title || (lectureAfterUpdate.exists() ? (lectureAfterUpdate.data() as Lecture).title : 'Unknown Lecture');
   await logActivity('lecture_updated', `Lecture "${title}" was updated.`, id);
 }
 
 export async function deleteLecture(lectureId: string): Promise<void> {
-  const lecture = await getLectureById(lectureId);
-  const title = lecture?.title || 'Unknown Lecture';
+  const lectureDoc = await getDoc(doc(db, 'lectures', lectureId));
+  const title = lectureDoc.exists() ? (lectureDoc.data() as Lecture).title : 'Unknown Lecture';
 
   const batch = writeBatch(db);
   const lectureRef = doc(db, 'lectures', lectureId);
@@ -78,3 +89,4 @@ export async function deleteLecture(lectureId: string): Promise<void> {
 
   await logActivity('lecture_deleted', `Lecture "${title}" and its associated content were deleted.`, lectureId);
 }
+

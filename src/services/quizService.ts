@@ -25,14 +25,25 @@ const lecturesCollection = collection(db, 'lectures');
 const lessonsCollection = collection(db, 'lessons');
 const userQuizCompletionsCollection = collection(db, 'userQuizCompletions');
 
+// Helper to convert Firestore data with Timestamps to serializable Quiz
+function toSerializableQuiz(docSnap: any): Quiz {
+  const data = docSnap.data() as Omit<Quiz, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp };
+  const questions = data.questions.map(q => ({ ...q, options: q.options || [] }));
+  return {
+    ...data,
+    id: docSnap.id,
+    questions,
+    createdAt: data.createdAt?.toDate().toISOString(),
+    updatedAt: data.updatedAt?.toDate().toISOString(),
+  };
+}
+
 
 export async function getQuizById(id: string): Promise<Quiz | null> {
   const docRef = doc(db, 'quizzes', id);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
-    const quiz = docSnap.data() as Quiz;
-    quiz.questions = quiz.questions.map(q => ({ ...q, options: q.options || [] }));
-    return { ...quiz, id: docSnap.id };
+    return toSerializableQuiz(docSnap);
   }
   return null;
 }
@@ -42,9 +53,7 @@ export async function getQuizByLessonId(lessonId: string): Promise<Quiz | null> 
   const snapshot = await getDocs(q);
   if (!snapshot.empty) {
     const docSnap = snapshot.docs[0];
-    const quiz = docSnap.data() as Quiz;
-    quiz.questions = quiz.questions.map(q => ({ ...q, options: q.options || [] }));
-    return { ...quiz, id: docSnap.id };
+    return toSerializableQuiz(docSnap);
   }
   return null;
 }
@@ -54,18 +63,18 @@ export async function getQuizByLectureId(lectureId: string): Promise<Quiz | null
   const snapshot = await getDocs(q);
   if (!snapshot.empty) {
     const docSnap = snapshot.docs[0];
-    const quiz = docSnap.data() as Quiz;
-    quiz.questions = quiz.questions.map(q => ({ ...q, options: q.options || [] }));
-    return { ...quiz, id: docSnap.id };
+    return toSerializableQuiz(docSnap);
   }
   return null;
 }
 
-export interface EnrichedQuiz extends Omit<Quiz, 'questions'> {
+export interface EnrichedQuiz extends Omit<Quiz, 'questions' | 'createdAt' | 'updatedAt'> {
   questionsCount: number;
   associatedTitle?: string;
   associatedType?: 'Lesson' | 'Lecture' | 'N/A';
   associatedWithTitle?: string; // Added for consistency with quizzes-table
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export async function getAllQuizzesEnriched(): Promise<EnrichedQuiz[]> {
@@ -77,7 +86,7 @@ export async function getAllQuizzesEnriched(): Promise<EnrichedQuiz[]> {
   const lessonsCache: Record<string, string> = {};
 
   for (const docSnap of snapshot.docs) {
-    const data = docSnap.data() as Quiz;
+    const data = toSerializableQuiz(docSnap); // Use helper for base quiz data
     let associatedTitle: string | undefined;
     let associatedType: 'Lesson' | 'Lecture' | 'N/A' = 'N/A';
 
@@ -121,7 +130,7 @@ export async function getAllQuizzesEnriched(): Promise<EnrichedQuiz[]> {
 }
 
 export async function addQuiz(data: QuizFormData): Promise<string> {
-  const quizDataToSave: Omit<Quiz, 'id' | 'createdAt' | 'updatedAt'> = { // Ensure createdAt/updatedAt are not in QuizFormData
+  const quizDataToSave: Omit<Quiz, 'id' | 'createdAt' | 'updatedAt'> = { 
     title: data.title,
     description: data.description,
     lessonId: data.associationType === "lesson" ? data.associatedId : undefined,
@@ -153,13 +162,14 @@ export async function updateQuiz(id: string, data: QuizFormData): Promise<void> 
     ...quizDataToSave,
     updatedAt: Timestamp.now(),
   });
-  const title = data.title || (await getQuizById(id))?.title || 'Unknown Quiz';
+  const quizAfterUpdate = await getDoc(docRef);
+  const title = data.title || (quizAfterUpdate.exists() ? (quizAfterUpdate.data() as Quiz).title : 'Unknown Quiz');
   await logActivity('quiz_updated', `Quiz "${title}" was updated.`, id);
 }
 
 export async function deleteQuiz(quizId: string, existingBatch?: WriteBatch): Promise<void> {
-  const quiz = await getQuizById(quizId);
-  const title = quiz?.title || 'Unknown Quiz';
+  const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
+  const title = quizDoc.exists() ? (quizDoc.data()as Quiz).title : 'Unknown Quiz';
 
   const batch = existingBatch || writeBatch(db);
   const quizRef = doc(db, 'quizzes', quizId);
@@ -200,13 +210,13 @@ export async function getLessonsForSelect(): Promise<Pick<Lesson, 'id' | 'title'
       id: docSnap.id, 
       title: data.title as string,
       lectureId: data.lectureId as string,
-      content: data.content as Lesson['content']
+      content: data.content as Lesson['content'] // Assuming content is stored and needed
     };
   });
 }
 
 export async function logQuizCompletion(userId: string, quizId: string, score: number): Promise<string> {
-  const completionData: Omit<UserQuizCompletion, 'id'> = {
+  const completionData: Omit<UserQuizCompletion, 'id' | 'completedAt'> & { completedAt: Timestamp } = {
     userId,
     quizId,
     score,
@@ -214,8 +224,8 @@ export async function logQuizCompletion(userId: string, quizId: string, score: n
   };
   const docRef = await addDoc(userQuizCompletionsCollection, completionData);
   
-  const quiz = await getQuizById(quizId);
-  const quizTitle = quiz?.title || 'Unknown Quiz';
+  const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
+  const quizTitle = quizDoc.exists() ? (quizDoc.data() as Quiz).title : 'Unknown Quiz';
   await logActivity('quiz_taken', `User completed quiz "${quizTitle}" with score ${score.toFixed(0)}%.`, quizId, userId);
   
   return docRef.id;
@@ -231,3 +241,4 @@ export async function getUserCompletedQuizzesCount(userId: string): Promise<numb
     return 0;
   }
 }
+
