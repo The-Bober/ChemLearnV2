@@ -39,7 +39,7 @@ export interface Question {
   lessonId?: string;
   text: string;
   type: QuestionType;
-  options: QuestionOption[];
+  options: QuestionOption[]; // Ensure this is always present, even if empty for true/false after processing
   correctAnswer: string; // For true_false: "true" or "false". For MC: id of the correct QuestionOption.
   explanation?: string;
 }
@@ -51,6 +51,7 @@ export interface Quiz {
   title: string;
   description?: string;
   questions: Question[]; // Embedded questions
+  durationMinutes?: number; // Time limit for the quiz in minutes
 }
 
 // For AI Quiz Generation
@@ -62,4 +63,3 @@ export interface AIQuestion extends Omit<Question, 'id' | 'quizId' | 'lessonId' 
 export interface AIQuizOutput {
   questions: AIQuestion[];
 }
-
