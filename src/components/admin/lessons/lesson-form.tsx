@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from "uuid";
 import { Trash2, PlusCircle } from "lucide-react";
+import { Card } from "@/components/ui/card"; // Added import for Card
 
 const lessonContentBlockSchema = z.object({
   id: z.string().default(() => uuidv4()),
@@ -50,7 +51,7 @@ export function LessonForm({ initialData, lectures, onSubmit }: LessonFormProps)
       order: initialData?.order || 1,
       estimatedTimeMinutes: initialData?.estimatedTimeMinutes || undefined,
       content: initialData?.content && initialData.content.length > 0 
-        ? initialData.content 
+        ? initialData.content.map(c => ({...c, id: c.id || uuidv4()})) // Ensure content blocks have IDs
         : [{ id: uuidv4(), type: "text", value: "" }],
     },
   });
@@ -248,3 +249,4 @@ export function LessonForm({ initialData, lectures, onSubmit }: LessonFormProps)
     </Form>
   );
 }
+
