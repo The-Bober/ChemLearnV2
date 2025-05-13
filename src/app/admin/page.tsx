@@ -1,13 +1,25 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookText, FileQuestion, Users, BarChart3 } from "lucide-react";
 import Link from "next/link";
+import { getAllLectures } from "@/services/lectureService";
+import { getAllLessonsEnriched } from "@/services/lessonService";
+import { getAllQuizzesEnriched } from "@/services/quizService";
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const lecturesData = await getAllLectures();
+  const lessonsData = await getAllLessonsEnriched();
+  const quizzesData = await getAllQuizzesEnriched();
+
+  // User count is typically an admin SDK operation or a denormalized counter in Firestore.
+  // Client-side SDK cannot list all users for a direct count.
+  const usersCount = "N/A"; 
+
   const stats = [
-    { title: "Total Lectures", value: "12", icon: BookText, color: "text-primary" },
-    { title: "Total Lessons", value: "150", icon: FileQuestion, color: "text-accent" },
-    { title: "Total Quizzes", value: "85", icon: BarChart3, color: "text-purple-500" }, // Changed to a valid color, ensure this is defined in theme or use a theme color like text-primary
-    { title: "Registered Users", value: "1,234", icon: Users, color: "text-green-500" }, // Changed to a valid color, ensure this is defined in theme or use a theme color like text-primary
+    { title: "Total Lectures", value: lecturesData.length.toString(), icon: BookText, color: "text-primary" },
+    { title: "Total Lessons", value: lessonsData.length.toString(), icon: FileQuestion, color: "text-accent" },
+    { title: "Total Quizzes", value: quizzesData.length.toString(), icon: BarChart3, color: "text-primary" }, 
+    { title: "Registered Users", value: usersCount, icon: Users, color: "text-accent" },
   ];
 
   return (
@@ -63,7 +75,7 @@ export default function AdminDashboardPage() {
               { name: "Lectures", href: "/admin/lectures" },
               { name: "Lessons", href: "/admin/lessons" },
               { name: "Quizzes", href: "/admin/quizzes" },
-              { name: "Users", href: "#" /* /admin/users */ },
+              { name: "Users", href: "#" /* /admin/users - Future feature */ },
             ].map((item) => (
               <Link key={item.name} href={item.href} className="block p-4 rounded-md border hover:bg-secondary/50 transition-colors">
                 <h3 className="font-medium text-foreground">{item.name}</h3>
@@ -76,3 +88,4 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
