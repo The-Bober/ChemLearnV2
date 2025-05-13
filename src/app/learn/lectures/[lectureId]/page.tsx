@@ -1,5 +1,6 @@
 
-import { getLectureById, getLessonsByLectureId } from "@/services/lectureService";
+import { getLectureById } from "@/services/lectureService";
+import { getLessonsByLectureId } from "@/services/lessonService"; // Corrected import
 import type { Lecture, Lesson } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,3 +112,4 @@ export default async function LecturePage({ params }: LecturePageProps) {
     </div>
   );
 }
+
