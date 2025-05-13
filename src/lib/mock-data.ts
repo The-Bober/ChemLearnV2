@@ -100,14 +100,30 @@ mockLecturesData.forEach(lecture => {
   lecture.lessonsCount = mockLessonsData.filter(lesson => lesson.lectureId === lecture.id).length;
 });
 
-
-const matterQuizOptionsQ2: QuestionOption[] = [
+// Prepare options and correct answers for quizzes to avoid initialization errors
+const matterQuizQ2Options: QuestionOption[] = [
   {id: uuidv4(), text: 'Solid'},
   {id: uuidv4(), text: 'Plasma'},
   {id: uuidv4(), text: 'Bose-Einstein Condensate'},
   {id: uuidv4(), text: 'Light'}
 ];
-const matterQuizCorrectQ2 = matterQuizOptionsQ2.find(opt => opt.text === 'Solid')?.id || matterQuizOptionsQ2[0].id;
+const matterQuizQ2CorrectAnswerId = matterQuizQ2Options.find(opt => opt.text === 'Solid')?.id || matterQuizQ2Options[0].id;
+
+const introChemQuizQ1Options: QuestionOption[] = [
+  {id: uuidv4(), text: 'H₂O'},
+  {id: uuidv4(), text: 'CO₂'},
+  {id: uuidv4(), text: 'O₂'},
+  {id: uuidv4(), text: 'NaCl'}
+];
+const introChemQuizQ1CorrectAnswerId = introChemQuizQ1Options.find(o => o.text === 'H₂O')!.id;
+
+const atomicStructureQuizQ1Options: QuestionOption[] = [
+  {id: uuidv4(), text: 'Electron'},
+  {id: uuidv4(), text: 'Proton'},
+  {id: uuidv4(), text: 'Neutron'},
+];
+const atomicStructureQuizQ1CorrectAnswerId = atomicStructureQuizQ1Options.find(o => o.text === 'Proton')!.id;
+
 
 export const mockQuizzesData: Quiz[] = [
   {
@@ -121,7 +137,7 @@ export const mockQuizzesData: Quiz[] = [
         id: uuidv4(),
         text: 'Is light considered matter?',
         type: 'true_false',
-        options: [], // True/false options are usually handled implicitly, but an empty array is fine.
+        options: [], 
         correctAnswer: 'false',
         explanation: 'Light is a form of energy and does not have mass or volume.'
       },
@@ -129,8 +145,8 @@ export const mockQuizzesData: Quiz[] = [
         id: uuidv4(),
         text: 'Which of these is a primary state of matter taught at an introductory level?',
         type: 'multiple_choice',
-        options: matterQuizOptionsQ2,
-        correctAnswer: matterQuizCorrectQ2,
+        options: matterQuizQ2Options,
+        correctAnswer: matterQuizQ2CorrectAnswerId,
         explanation: 'Solid, liquid, and gas are the three primary states of matter taught at an introductory level. Plasma is often considered the fourth.'
       },
       {
@@ -154,17 +170,8 @@ export const mockQuizzesData: Quiz[] = [
         id: uuidv4(),
         text: 'What is the chemical symbol for water?',
         type: 'multiple_choice',
-        options: [
-            {id: uuidv4(), text: 'H₂O'},
-            {id: uuidv4(), text: 'CO₂'},
-            {id: uuidv4(), text: 'O₂'},
-            {id: uuidv4(), text: 'NaCl'}
-        ],
-        correctAnswer: (function() { // IIFE to get the ID
-            const opts = [{id: uuidv4(), text: 'H₂O'}, {id: uuidv4(), text: 'CO₂'}, {id: uuidv4(), text: 'O₂'}, {id: uuidv4(), text: 'NaCl'}];
-            mockQuizzesData.find(q=>q.id==='quiz-2')!.questions[0].options = opts; // assign options to question
-            return opts.find(o => o.text === 'H₂O')!.id;
-        })(),
+        options: introChemQuizQ1Options,
+        correctAnswer: introChemQuizQ1CorrectAnswerId,
         explanation: 'Water is composed of two hydrogen atoms and one oxygen atom.'
       },
       {
@@ -188,16 +195,8 @@ export const mockQuizzesData: Quiz[] = [
         id: uuidv4(),
         text: 'Which particle is found in the nucleus and has a positive charge?',
         type: 'multiple_choice',
-        options: [
-          {id: uuidv4(), text: 'Electron'},
-          {id: uuidv4(), text: 'Proton'},
-          {id: uuidv4(), text: 'Neutron'},
-        ],
-        correctAnswer: (function() {
-          const opts = [{id: uuidv4(), text: 'Electron'}, {id: uuidv4(), text: 'Proton'}, {id: uuidv4(), text: 'Neutron'}];
-           mockQuizzesData.find(q=>q.id==='quiz-3')!.questions[0].options = opts;
-          return opts.find(o => o.text === 'Proton')!.id;
-        })(),
+        options: atomicStructureQuizQ1Options,
+        correctAnswer: atomicStructureQuizQ1CorrectAnswerId,
         explanation: 'Protons are positively charged particles found in the nucleus.'
       },
       {
@@ -211,17 +210,3 @@ export const mockQuizzesData: Quiz[] = [
     ]
   }
 ];
-
-// Self-correction for quiz-2 option IDs (ensure they are actually set on the quiz object if IIFE doesn't work as expected in this context)
-const quiz2 = mockQuizzesData.find(q => q.id === 'quiz-2');
-if (quiz2 && quiz2.questions[0] && !quiz2.questions[0].options.length) {
-    const opts = [{id: uuidv4(), text: 'H₂O'}, {id: uuidv4(), text: 'CO₂'}, {id: uuidv4(), text: 'O₂'}, {id: uuidv4(), text: 'NaCl'}];
-    quiz2.questions[0].options = opts;
-    quiz2.questions[0].correctAnswer = opts.find(o => o.text === 'H₂O')!.id;
-}
-const quiz3 = mockQuizzesData.find(q => q.id === 'quiz-3');
-if (quiz3 && quiz3.questions[0] && !quiz3.questions[0].options.length) {
-    const opts = [{id: uuidv4(), text: 'Electron'}, {id: uuidv4(), text: 'Proton'}, {id: uuidv4(), text: 'Neutron'}];
-    quiz3.questions[0].options = opts;
-    quiz3.questions[0].correctAnswer = opts.find(o => o.text === 'Proton')!.id;
-}
