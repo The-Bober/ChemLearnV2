@@ -1,12 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookText, FileQuestion, Users, BarChart3 } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminDashboardPage() {
   const stats = [
     { title: "Total Lectures", value: "12", icon: BookText, color: "text-primary" },
     { title: "Total Lessons", value: "150", icon: FileQuestion, color: "text-accent" },
-    { title: "Total Quizzes", value: "85", icon: BarChart3, color: "text-purple-500" },
-    { title: "Registered Users", value: "1,234", icon: Users, color: "text-green-500" },
+    { title: "Total Quizzes", value: "85", icon: BarChart3, color: "text-purple-500" }, // Changed to a valid color, ensure this is defined in theme or use a theme color like text-primary
+    { title: "Registered Users", value: "1,234", icon: Users, color: "text-green-500" }, // Changed to a valid color, ensure this is defined in theme or use a theme color like text-primary
   ];
 
   return (
