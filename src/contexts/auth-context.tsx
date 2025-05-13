@@ -2,7 +2,7 @@
 'use client';
 
 import type { User as FirebaseUser, AuthError } from 'firebase/auth';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode, useCallback } from 'react';
 import { auth, db } from '@/lib/firebase'; // Ensure db is imported
 import { 
   onAuthStateChanged, 
@@ -13,6 +13,7 @@ import {
 import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'; // Import Firestore methods
 import type { PropsWithChildren } from 'react';
 import { logActivity } from '@/services/activityService'; 
+import { getUserCompletedQuizzesCount } from '@/services/quizService'; // Import quiz service
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -23,6 +24,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   error: string | null;
   clearError: () => void;
+  completedQuizzesCount: number | null;
+  loadingCompletedQuizzesCount: boolean;
+  refreshCompletedQuizzesCount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +36,27 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [completedQuizzesCount, setCompletedQuizzesCount] = useState<number | null>(null);
+  const [loadingCompletedQuizzesCount, setLoadingCompletedQuizzesCount] = useState<boolean>(true);
+
+  const fetchUserStats = useCallback(async (currentUser: FirebaseUser | null) => {
+    if (currentUser) {
+      setLoadingCompletedQuizzesCount(true);
+      try {
+        const count = await getUserCompletedQuizzesCount(currentUser.uid);
+        setCompletedQuizzesCount(count);
+      } catch (e) {
+        console.error("Failed to fetch completed quizzes count", e);
+        setCompletedQuizzesCount(0); // Default to 0 on error
+      } finally {
+        setLoadingCompletedQuizzesCount(false);
+      }
+    } else {
+      setCompletedQuizzesCount(null);
+      setLoadingCompletedQuizzesCount(false);
+    }
+  }, []);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -42,8 +67,6 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
         const isEmailAdmin = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
         if (userDocSnap.exists()) {
-          // If user doc exists, use its isAdmin field.
-          // If the email matches admin email but Firestore says not admin, update Firestore (admin logged in, record was wrong)
           if (isEmailAdmin && userDocSnap.data().isAdmin !== true) {
             await setDoc(userDocRef, { isAdmin: true }, { merge: true });
             setIsAdmin(true);
@@ -51,8 +74,6 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
             setIsAdmin(userDocSnap.data().isAdmin === true);
           }
         } else {
-          // User doc doesn't exist. Create it.
-          // This handles first login for users (including admin) after these changes.
           await setDoc(userDocRef, {
             email: firebaseUser.email,
             uid: firebaseUser.uid,
@@ -63,14 +84,16 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
           });
           setIsAdmin(isEmailAdmin);
         }
+        await fetchUserStats(firebaseUser); // Fetch stats after user is set
       } else {
         setIsAdmin(false);
+        await fetchUserStats(null); // Clear stats if no user
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [fetchUserStats]);
 
   const clearError = () => setError(null);
 
@@ -80,8 +103,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const firebaseUser = userCredential.user;
-      // Auth state change will handle setting user and isAdmin from Firestore
-      // No need to duplicate logic here, onAuthStateChanged will run.
+      // onAuthStateChanged will handle setting user, isAdmin, and fetching stats
       setLoading(false);
       return firebaseUser;
     } catch (e) {
@@ -101,7 +123,6 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
       
       const isAdminUser = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
       
-      // Create user document in Firestore
       const userDocRef = doc(db, "users", firebaseUser.uid);
       await setDoc(userDocRef, {
         email: firebaseUser.email,
@@ -111,11 +132,8 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
         isAdmin: isAdminUser,
         createdAt: Timestamp.now(),
       });
-
-      // setUser(firebaseUser); // onAuthStateChanged will handle this
-      // setIsAdmin(isAdminUser); // onAuthStateChanged will handle this by reading from Firestore
-
-      setLoading(false); // Set loading false after operations
+      // onAuthStateChanged will handle setting user, isAdmin, and fetching stats
+      setLoading(false);
       await logActivity('user_registered', `User "${firebaseUser.email}" registered.`, firebaseUser.uid, firebaseUser.uid);
       return firebaseUser;
     } catch (e) {
@@ -131,17 +149,33 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setError(null);
     try {
       await firebaseSignOut(auth);
-      // setUser(null); // onAuthStateChanged will handle this
-      // setIsAdmin(false); // onAuthStateChanged will handle this
+      // onAuthStateChanged will handle resetting user, isAdmin, and stats
     } catch (e) {
         const authError = e as AuthError;
         setError(authError.message);
-    } finally {
-        // setLoading(false); // onAuthStateChanged will set loading to false
-    }
+    } 
+    // setLoading will be handled by onAuthStateChanged
   };
 
-  const value = { user, isAdmin, loading, signIn, signUp, signOut, error, clearError };
+  const refreshCompletedQuizzesCount = useCallback(async () => {
+    if (user) {
+      await fetchUserStats(user);
+    }
+  }, [user, fetchUserStats]);
+
+  const value = { 
+    user, 
+    isAdmin, 
+    loading, 
+    signIn, 
+    signUp, 
+    signOut, 
+    error, 
+    clearError,
+    completedQuizzesCount,
+    loadingCompletedQuizzesCount,
+    refreshCompletedQuizzesCount,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

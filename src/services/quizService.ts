@@ -15,13 +15,15 @@ import {
   writeBatch,
   Timestamp,
   type WriteBatch,
+  getCountFromServer,
 } from 'firebase/firestore';
-import type { Quiz, QuizFormData, Lecture, Lesson } from '@/types';
+import type { Quiz, QuizFormData, Lecture, Lesson, UserQuizCompletion } from '@/types';
 import { logActivity } from './activityService'; // Import activity logger
 
 const quizzesCollection = collection(db, 'quizzes');
 const lecturesCollection = collection(db, 'lectures');
 const lessonsCollection = collection(db, 'lessons');
+const userQuizCompletionsCollection = collection(db, 'userQuizCompletions');
 
 
 export async function getQuizById(id: string): Promise<Quiz | null> {
@@ -201,4 +203,31 @@ export async function getLessonsForSelect(): Promise<Pick<Lesson, 'id' | 'title'
       content: data.content as Lesson['content']
     };
   });
+}
+
+export async function logQuizCompletion(userId: string, quizId: string, score: number): Promise<string> {
+  const completionData: Omit<UserQuizCompletion, 'id'> = {
+    userId,
+    quizId,
+    score,
+    completedAt: Timestamp.now(),
+  };
+  const docRef = await addDoc(userQuizCompletionsCollection, completionData);
+  
+  const quiz = await getQuizById(quizId);
+  const quizTitle = quiz?.title || 'Unknown Quiz';
+  await logActivity('quiz_taken', `User completed quiz "${quizTitle}" with score ${score.toFixed(0)}%.`, quizId, userId);
+  
+  return docRef.id;
+}
+
+export async function getUserCompletedQuizzesCount(userId: string): Promise<number> {
+  try {
+    const q = query(userQuizCompletionsCollection, where('userId', '==', userId));
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error("Error fetching user completed quizzes count:", error);
+    return 0;
+  }
 }

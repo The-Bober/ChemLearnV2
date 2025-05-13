@@ -13,11 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, Settings, CreditCard, LogIn, UserPlus } from "lucide-react";
+import { LogOut, User, Settings, CreditCard, LogIn, UserPlus, CheckSquare, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { Badge } from "@/components/ui/badge";
 
 export function UserNav() {
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut, loading, completedQuizzesCount, loadingCompletedQuizzesCount } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
@@ -61,14 +62,14 @@ export function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
+          <Avatar className="h-10 w-10">
             <AvatarImage src={userImage} alt={userName} data-ai-hint="user avatar" />
             <AvatarFallback>{userName ? userName.charAt(0).toUpperCase() : "U"}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-64" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userName}</p>
@@ -77,6 +78,18 @@ export function UserNav() {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-default focus:bg-transparent">
+          <CheckSquare className="mr-2 h-4 w-4 text-primary" />
+          <span>Quizzes Completed:</span>
+          {loadingCompletedQuizzesCount ? (
+            <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Badge variant="secondary" className="ml-auto">
+              {completedQuizzesCount ?? 0}
+            </Badge>
+          )}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem disabled> {/* Placeholder */}
@@ -101,4 +114,3 @@ export function UserNav() {
     </DropdownMenu>
   );
 }
-

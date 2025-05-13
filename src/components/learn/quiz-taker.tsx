@@ -12,6 +12,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Timer, ChevronLeft, Info } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/auth-context"; // Import useAuth
+import { logQuizCompletion } from "@/services/quizService"; // Import quiz service
+import { useToast } from "@/hooks/use-toast";
 
 interface QuizTakerProps {
   quiz: Quiz;
@@ -31,15 +34,17 @@ interface Result extends Question {
 }
 
 export function QuizTaker({ quiz }: QuizTakerProps) {
+  const { user, refreshCompletedQuizzesCount } = useAuth(); // Get user and refresh function
+  const { toast } = useToast();
   const [answers, setAnswers] = useState<Record<string, string>>({}); // questionId -> selectedOptionId or "true"/"false"
   const [timeLeft, setTimeLeft] = useState<number>((quiz.durationMinutes || 10) * 60);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [results, setResults] = useState<Result[]>([]);
-  const [score, setScore] = useState<number>(0);
+  const [currentScore, setCurrentScore] = useState<number>(0); // Renamed from score to currentScore
   const [showInfo, setShowInfo] = useState<boolean>(true);
 
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     setIsSubmitted(true);
     let correctAnswers = 0;
     const detailedResults = quiz.questions.map(q => {
@@ -62,9 +67,28 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
       return { ...q, userAnswer: userAnswerValue, isCorrect, selectedOptionText, correctOptionText };
     });
     setResults(detailedResults);
-    setScore((correctAnswers / quiz.questions.length) * 100);
+    const calculatedScore = (correctAnswers / quiz.questions.length) * 100;
+    setCurrentScore(calculatedScore);
     setTimeLeft(0); // Stop timer
-  }, [answers, quiz]);
+
+    if (user) {
+      try {
+        await logQuizCompletion(user.uid, quiz.id, calculatedScore);
+        await refreshCompletedQuizzesCount(); // Refresh count in AuthContext
+        toast({
+          title: "Quiz Submitted",
+          description: "Your results have been recorded.",
+        });
+      } catch (error) {
+        console.error("Failed to log quiz completion:", error);
+        toast({
+          title: "Submission Error",
+          description: "Could not record your quiz completion. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [answers, quiz, user, refreshCompletedQuizzesCount, toast]);
 
   useEffect(() => {
     if (isSubmitted || timeLeft <= 0 || !showInfo) return;
@@ -128,7 +152,7 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl text-primary">Quiz Results: {quiz.title}</CardTitle>
           <CardDescription className="text-xl">
-            Your Score: <span className={`font-bold ${score >= 70 ? 'text-green-500' : 'text-red-500'}`}>{score.toFixed(2)}%</span>
+            Your Score: <span className={`font-bold ${currentScore >= 70 ? 'text-green-500' : 'text-red-500'}`}>{currentScore.toFixed(2)}%</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -159,6 +183,11 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
           <Button asChild className="w-full mt-6">
             <Link href="/quizzes">Back to Quizzes</Link>
           </Button>
+           {quiz.lessonId && (
+            <Button variant="outline" asChild className="w-full mt-2">
+              <Link href={`/learn/lessons/${quiz.lessonId}`}>Back to Lesson</Link>
+            </Button>
+          )}
         </CardContent>
       </Card>
     );

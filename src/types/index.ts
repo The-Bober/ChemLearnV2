@@ -118,3 +118,11 @@ export interface Activity {
   relatedId?: string; // ID of the lecture, lesson, quiz, or user
   userId?: string; // ID of the user performing the action (if applicable)
 }
+
+export interface UserQuizCompletion {
+  id?: string; // Document ID from Firestore
+  userId: string;
+  quizId: string;
+  score: number; // Percentage score
+  completedAt: Timestamp;
+}
