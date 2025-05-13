@@ -63,13 +63,21 @@ export default async function LearnPage() {
             <Atom className="h-12 w-12 text-primary mb-2" />
             <h3 className="text-lg font-medium">Periodic Table</h3>
             <p className="text-sm text-muted-foreground mb-3">Explore the elements.</p>
-            <Button variant="outline" size="sm" disabled>View Table</Button> {/* Disabled for now */}
+            <Button variant="outline" size="sm" asChild>
+              <Link href="https://ptable.com/?lang=en#Properties" target="_blank" rel="noopener noreferrer">
+                View Table
+              </Link>
+            </Button>
           </Card>
           <Card className="p-6 flex flex-col items-center justify-center text-center hover:bg-secondary/50 transition-colors">
             <FlaskConical className="h-12 w-12 text-accent mb-2" />
             <h3 className="text-lg font-medium">Glossary</h3>
             <p className="text-sm text-muted-foreground mb-3">Chemistry terms explained.</p>
-            <Button variant="outline" size="sm" disabled>Open Glossary</Button> {/* Disabled for now */}
+            <Button variant="outline" size="sm" asChild>
+              <Link href="https://en.wikipedia.org/wiki/Glossary_of_chemistry_terms" target="_blank" rel="noopener noreferrer">
+                Open Glossary
+              </Link>
+            </Button>
           </Card>
         </div>
       </section>
