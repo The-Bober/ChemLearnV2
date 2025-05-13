@@ -1,6 +1,9 @@
+
 "use client";
 
 import type { PropsWithChildren } from "react";
+import { useEffect } from "react";
+import { redirect } from "next/navigation";
 import {
   SidebarProvider,
   Sidebar,
@@ -12,14 +15,41 @@ import {
   SidebarMenu,
 } from "@/components/ui/sidebar";
 import { AdminNav } from "@/components/admin/admin-nav";
-import { UserNav } from "@/components/user-nav"; // Can be reused or a specific AdminUserNav
+import { UserNav } from "@/components/user-nav";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { LogOut, Home } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AdminLayout({ children }: PropsWithChildren) {
+  const { user, isAdmin, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        redirect('/login?redirect=/admin');
+      } else if (!isAdmin) {
+        redirect('/learn'); // Or a dedicated "unauthorized" page
+      }
+    }
+  }, [user, isAdmin, loading]);
+
+  if (loading || (!loading && (!user || !isAdmin))) {
+    // Basic loading state
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Logo iconSize={48} textSize="text-3xl"/>
+          <Skeleton className="h-8 w-48" />
+          <p className="text-muted-foreground">Verifying admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider defaultOpen>
       <AdminSidebarHSN>
@@ -30,6 +60,13 @@ export default function AdminLayout({ children }: PropsWithChildren) {
 }
 
 function AdminSidebarHSN({ children }: PropsWithChildren) {
+  const { signOut, loading: authLoading } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    // No need to redirect here, the layout's useEffect will handle it
+  };
+
   return (
     <>
       <Sidebar>
@@ -48,7 +85,7 @@ function AdminSidebarHSN({ children }: PropsWithChildren) {
               <span className="group-data-[collapsible=icon]:hidden">Back to App</span>
             </Link>
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-2">
+          <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout} disabled={authLoading}>
              <LogOut className="h-4 w-4" />
              <span className="group-data-[collapsible=icon]:hidden">Logout</span>
           </Button>

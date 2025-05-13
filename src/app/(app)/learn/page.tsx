@@ -1,8 +1,9 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, Atom, FlaskConical } from "lucide-react"; // Added Atom and FlaskConical
 
 // Mock data - replace with actual data fetching
 const lectures = [
@@ -62,13 +63,13 @@ export default function LearnPage() {
             <Atom className="h-12 w-12 text-primary mb-2" />
             <h3 className="text-lg font-medium">Periodic Table</h3>
             <p className="text-sm text-muted-foreground mb-3">Explore the elements.</p>
-            <Button variant="outline" size="sm">View Table</Button>
+            <Button variant="outline" size="sm" disabled>View Table</Button> {/* Disabled for now */}
           </Card>
           <Card className="p-6 flex flex-col items-center justify-center text-center hover:bg-secondary/50 transition-colors">
             <FlaskConical className="h-12 w-12 text-accent mb-2" />
             <h3 className="text-lg font-medium">Glossary</h3>
             <p className="text-sm text-muted-foreground mb-3">Chemistry terms explained.</p>
-            <Button variant="outline" size="sm">Open Glossary</Button>
+            <Button variant="outline" size="sm" disabled>Open Glossary</Button> {/* Disabled for now */}
           </Card>
         </div>
       </section>

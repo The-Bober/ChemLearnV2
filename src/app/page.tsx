@@ -1,14 +1,21 @@
+
+'use client';
+
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import Link from "next/link";
 import Image from "next/image";
+import { useAuth } from "@/contexts/auth-context";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomePage() {
+  const { user, loading } = useAuth();
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4">
       <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
         <Logo iconSize={32} textSize="text-2xl" />
-        {/* Future: Add login/signup buttons here if needed */}
+        {/* Login/Signup buttons are now part of UserNav or main content based on auth state */}
       </header>
 
       <main className="text-center flex flex-col items-center space-y-8">
@@ -31,12 +38,30 @@ export default function HomePage() {
           Unlock the fascinating world of chemistry with engaging lessons, interactive quizzes, and a personalized learning experience.
         </p>
         <div className="space-y-4 sm:space-y-0 sm:flex sm:gap-4">
-          <Button asChild size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-primary/50 transition-shadow">
-            <Link href="/learn">Start Learning Now</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-            <Link href="/admin">Admin Panel</Link>
-          </Button>
+          {loading ? (
+            <>
+              <Skeleton className="h-11 w-40" />
+              <Skeleton className="h-11 w-32" />
+            </>
+          ) : user ? (
+            <>
+              <Button asChild size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-primary/50 transition-shadow">
+                <Link href="/learn">Start Learning Now</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                <Link href="/admin">Admin Panel</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-primary/50 transition-shadow">
+                <Link href="/login">Login to Learn</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                <Link href="/signup">Sign Up</Link>
+              </Button>
+            </>
+          )}
         </div>
       </main>
 

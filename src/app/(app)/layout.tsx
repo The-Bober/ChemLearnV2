@@ -1,6 +1,9 @@
+
 "use client";
 
 import type { PropsWithChildren } from "react";
+import { useEffect } from "react";
+import { redirect } from "next/navigation";
 import {
   SidebarProvider,
   Sidebar,
@@ -18,8 +21,31 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Home, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AppLayout({ children }: PropsWithChildren) {
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      redirect('/login?redirect=/learn');
+    }
+  }, [user, loading]);
+
+  if (loading || (!loading && !user)) {
+    // Basic loading state, can be replaced with a more sophisticated skeleton UI
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Logo iconSize={48} textSize="text-3xl"/>
+          <Skeleton className="h-8 w-48" />
+          <p className="text-muted-foreground">Loading your learning experience...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider defaultOpen>
       <SidebarHSN>
@@ -31,6 +57,13 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
 // Sidebar, Header, and Navigation component
 function SidebarHSN({ children }: PropsWithChildren) {
+  const { signOut, loading: authLoading } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    // No need to redirect here, the layout's useEffect will handle it
+  };
+
   return (
     <>
       <Sidebar>
@@ -43,7 +76,7 @@ function SidebarHSN({ children }: PropsWithChildren) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2">
-          <Button variant="ghost" className="w-full justify-start gap-2">
+          <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout} disabled={authLoading}>
              <LogOut className="h-4 w-4" />
              <span className="group-data-[collapsible=icon]:hidden">Logout</span>
           </Button>
