@@ -1,5 +1,5 @@
 
-import { mockLecturesData, mockLessonsData } from "@/lib/mock-data";
+import { getLectureById, getLessonsByLectureId } from "@/services/lectureService";
 import type { Lecture, Lesson } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,12 @@ interface LecturePageProps {
   };
 }
 
-// Simulate fetching a lecture and its lessons
 async function getLectureDetails(lectureId: string): Promise<{ lecture: Lecture | null; lessons: Lesson[] }> {
-  const lecture = mockLecturesData.find(l => l.id === lectureId) || null;
+  const lecture = await getLectureById(lectureId);
   if (!lecture) {
     return { lecture: null, lessons: [] };
   }
-  const lessons = mockLessonsData.filter(lesson => lesson.lectureId === lectureId).sort((a, b) => a.order - b.order);
+  const lessons = await getLessonsByLectureId(lectureId);
   return { lecture, lessons };
 }
 
@@ -40,9 +39,9 @@ export default async function LecturePage({ params }: LecturePageProps) {
             <Image
               src={lecture.imageUrl}
               alt={lecture.title}
-              layout="fill"
-              objectFit="cover"
-              data-ai-hint="lecture topic"
+              fill // Replaced layout="fill" and objectFit="cover" with fill and object-cover
+              className="object-cover"
+              data-ai-hint={lecture.title.toLowerCase().split(" ").slice(0,2).join(" ") || "lecture topic"}
             />
              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
           </div>
@@ -77,10 +76,9 @@ export default async function LecturePage({ params }: LecturePageProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                  {/* Could add a short description of the lesson if available */}
                   <p className="text-muted-foreground line-clamp-3">
                     {lesson.content.find(c => c.type === 'text')?.value.substring(0, 150) || "No description available."}
-                    {lesson.content.find(c => c.type === 'text')?.value.length > 150 && "..."}
+                    {(lesson.content.find(c => c.type === 'text')?.value.length || 0) > 150 && "..."}
                   </p>
                 </CardContent>
                 <div className="p-6 pt-0 mt-auto">
@@ -105,7 +103,7 @@ export default async function LecturePage({ params }: LecturePageProps) {
       </section>
        <div className="mt-8 text-center">
             <Button variant="outline" asChild>
-                <Link href="/learn">
+                <Link href="/learn/lectures">
                     Back to All Lectures
                 </Link>
             </Button>

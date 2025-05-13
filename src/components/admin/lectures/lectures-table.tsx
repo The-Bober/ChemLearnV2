@@ -36,6 +36,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { deleteLecture } from "@/services/lectureService"; // Import the service
 
 interface LecturesTableProps {
   initialLectures: Lecture[];
@@ -46,16 +47,22 @@ export function LecturesTable({ initialLectures }: LecturesTableProps) {
   const router = useRouter();
   const { toast } = useToast();
 
-  // Simulate delete action
   const handleDeleteLecture = async (lectureId: string) => {
-    // In a real app, this would be an API call
-    // For now, filter out from local state
-    setLectures((prevLectures) => prevLectures.filter((lecture) => lecture.id !== lectureId));
-    toast({
-      title: "Lecture Deleted",
-      description: `Lecture with ID ${lectureId} has been deleted. (Mocked)`,
-    });
-    // router.refresh(); // If data was server-fetched
+    try {
+      await deleteLecture(lectureId);
+      setLectures((prevLectures) => prevLectures.filter((lecture) => lecture.id !== lectureId));
+      toast({
+        title: "Lecture Deleted",
+        description: `Lecture has been successfully deleted.`,
+      });
+      router.refresh(); 
+    } catch (error) {
+      toast({
+        title: "Error Deleting Lecture",
+        description: `Failed to delete lecture. ${error instanceof Error ? error.message : ''}`,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -84,7 +91,7 @@ export function LecturesTable({ initialLectures }: LecturesTableProps) {
                     height="64"
                     src={lecture.imageUrl}
                     width="64"
-                    data-ai-hint="lecture image"
+                    data-ai-hint={lecture.title.toLowerCase().split(" ").slice(0,2).join(" ") || "lecture image"}
                   />
                 ) : (
                   <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
@@ -125,7 +132,7 @@ export function LecturesTable({ initialLectures }: LecturesTableProps) {
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete the
-                        lecture &quot;{lecture.title}&quot; and its associated data.
+                        lecture &quot;{lecture.title}&quot; and all its associated lessons and quizzes.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -4,39 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { QuizzesTable } from "@/components/admin/quizzes/quizzes-table";
-import { mockQuizzesData, mockLessonsData, mockLecturesData } from "@/lib/mock-data";
-import type { Quiz } from "@/types";
+import { getAllQuizzesEnriched, type EnrichedQuiz } from "@/services/quizService";
 
-interface EnrichedQuiz extends Quiz {
-  associatedWithTitle?: string; // Title of lesson or lecture
-  associatedWithType?: 'Lesson' | 'Lecture' | 'N/A';
-}
-
-async function getQuizzes(): Promise<EnrichedQuiz[]> {
-  // Simulate fetching and enriching quiz data
-  return mockQuizzesData.map(quiz => {
-    let associatedWithTitle: string | undefined;
-    let associatedWithType: 'Lesson' | 'Lecture' | 'N/A' = 'N/A';
-
-    if (quiz.lessonId) {
-      const lesson = mockLessonsData.find(l => l.id === quiz.lessonId);
-      associatedWithTitle = lesson?.title;
-      associatedWithType = 'Lesson';
-    } else if (quiz.lectureId) {
-      const lecture = mockLecturesData.find(l => l.id === quiz.lectureId);
-      associatedWithTitle = lecture?.title;
-      associatedWithType = 'Lecture';
-    }
-    return {
-      ...quiz,
-      associatedWithTitle: associatedWithTitle || "Not Associated",
-      associatedWithType,
-    };
-  });
-}
 
 export default async function AdminQuizzesPage() {
-  const quizzes = await getQuizzes();
+  const quizzes: EnrichedQuiz[] = await getAllQuizzesEnriched();
 
   return (
     <div className="space-y-8">

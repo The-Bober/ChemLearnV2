@@ -1,14 +1,16 @@
 
-import { mockLessonsData, mockQuizzesData, mockLecturesData } from "@/lib/mock-data";
-import type { Lesson, Quiz } from "@/types";
+import { getLessonById, getLessonsByLectureId } from "@/services/lessonService";
+import { getQuizByLessonId } from "@/services/quizService";
+import { getLectureById } from "@/services/lectureService";
+import type { Lesson, Quiz, Lecture } from "@/types";
 import { LessonContentRenderer } from "@/components/learn/lesson-content-renderer";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Removed CardDescription as it's not used
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, FileQuestion, Timer, BookOpen } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge"; // Badge not used here
 
 interface LessonPageProps {
   params: {
@@ -16,30 +18,33 @@ interface LessonPageProps {
   };
 }
 
-// Simulate fetching a lesson, its associated quiz, and navigation links
 async function getLessonDetails(lessonId: string): Promise<{
   lesson: Lesson | null;
   quiz: Quiz | null;
   lectureTitle: string | null;
+  lectureId: string | null;
   previousLessonId: string | null;
   nextLessonId: string | null;
 }> {
-  const lesson = mockLessonsData.find(l => l.id === lessonId) || null;
+  const lesson = await getLessonById(lessonId);
   if (!lesson) {
-    return { lesson: null, quiz: null, lectureTitle: null, previousLessonId: null, nextLessonId: null };
+    return { lesson: null, quiz: null, lectureTitle: null, lectureId: null, previousLessonId: null, nextLessonId: null };
   }
 
-  const quiz = mockQuizzesData.find(q => q.lessonId === lessonId) || null;
-  const lecture = mockLecturesData.find(l => l.id === lesson.lectureId);
+  const quiz = await getQuizByLessonId(lessonId);
+  
+  let lecture: Lecture | null = null;
+  if (lesson.lectureId) {
+    lecture = await getLectureById(lesson.lectureId);
+  }
   const lectureTitle = lecture?.title || null;
+  const lectureId = lecture?.id || null;
 
   let previousLessonId: string | null = null;
   let nextLessonId: string | null = null;
 
-  if (lecture) {
-    const lessonsInLecture = mockLessonsData
-      .filter(l => l.lectureId === lesson.lectureId)
-      .sort((a, b) => a.order - b.order);
+  if (lesson.lectureId) {
+    const lessonsInLecture = await getLessonsByLectureId(lesson.lectureId); // Already sorted by order
     const currentIndex = lessonsInLecture.findIndex(l => l.id === lessonId);
 
     if (currentIndex > 0) {
@@ -50,11 +55,11 @@ async function getLessonDetails(lessonId: string): Promise<{
     }
   }
 
-  return { lesson, quiz, lectureTitle, previousLessonId, nextLessonId };
+  return { lesson, quiz, lectureTitle, lectureId, previousLessonId, nextLessonId };
 }
 
 export default async function LessonPage({ params }: LessonPageProps) {
-  const { lesson, quiz, lectureTitle, previousLessonId, nextLessonId } = await getLessonDetails(params.lessonId);
+  const { lesson, quiz, lectureTitle, lectureId, previousLessonId, nextLessonId } = await getLessonDetails(params.lessonId);
 
   if (!lesson) {
     notFound();
@@ -64,8 +69,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
     <div className="space-y-8">
       <Card className="shadow-lg">
         <CardHeader>
-          {lectureTitle && (
-             <Link href={`/learn/lectures/${lesson.lectureId}`} className="text-sm text-primary hover:underline flex items-center mb-2">
+          {lectureTitle && lectureId && (
+             <Link href={`/learn/lectures/${lectureId}`} className="text-sm text-primary hover:underline flex items-center mb-2">
                 <BookOpen className="mr-2 h-4 w-4" /> Back to {lectureTitle}
             </Link>
           )}

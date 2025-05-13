@@ -3,6 +3,7 @@
 
 import type { Lesson } from "@/types";
 import { useState } from "react";
+import { useRouter } from "next/navigation"; // Import useRouter
 import Link from "next/link";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { deleteLesson } from "@/services/lessonService"; // Import the service
 
 interface EnrichedLesson extends Lesson {
   lectureTitle?: string;
@@ -46,13 +48,24 @@ interface LessonsTableProps {
 export function LessonsTable({ initialLessons }: LessonsTableProps) {
   const [lessons, setLessons] = useState<EnrichedLesson[]>(initialLessons);
   const { toast } = useToast();
+  const router = useRouter(); // Initialize router
 
   const handleDeleteLesson = async (lessonId: string) => {
-    setLessons((prevLessons) => prevLessons.filter((lesson) => lesson.id !== lessonId));
-    toast({
-      title: "Lesson Deleted",
-      description: `Lesson with ID ${lessonId} has been deleted. (Mocked)`,
-    });
+    try {
+      await deleteLesson(lessonId);
+      setLessons((prevLessons) => prevLessons.filter((lesson) => lesson.id !== lessonId));
+      toast({
+        title: "Lesson Deleted",
+        description: `Lesson has been successfully deleted.`,
+      });
+      router.refresh(); // Refresh data on the page
+    } catch (error) {
+       toast({
+        title: "Error Deleting Lesson",
+        description: `Failed to delete lesson. ${error instanceof Error ? error.message : ''}`,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -105,7 +118,7 @@ export function LessonsTable({ initialLessons }: LessonsTableProps) {
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete the
-                        lesson &quot;{lesson.title}&quot;.
+                        lesson &quot;{lesson.title}&quot; and its associated quizzes.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

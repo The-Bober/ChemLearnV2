@@ -1,8 +1,10 @@
 
 "use client";
 
-import type { Quiz } from "@/types";
+import type { Quiz } from "@/types"; // Quiz type includes questions array
+import type { EnrichedQuiz as EnrichedQuizTypeFromService } from "@/services/quizService"; // Service type
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MoreHorizontal, Pencil, Trash2, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,35 +36,39 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { deleteQuiz } from "@/services/quizService";
 
-interface EnrichedQuiz extends Quiz {
-  associatedWithTitle?: string;
-  associatedWithType?: 'Lesson' | 'Lecture' | 'N/A';
-}
 
 interface QuizzesTableProps {
-  initialQuizzes: EnrichedQuiz[];
+  initialQuizzes: EnrichedQuizTypeFromService[];
 }
 
 export function QuizzesTable({ initialQuizzes }: QuizzesTableProps) {
-  const [quizzes, setQuizzes] = useState<EnrichedQuiz[]>(initialQuizzes);
+  const [quizzes, setQuizzes] = useState<EnrichedQuizTypeFromService[]>(initialQuizzes);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleDeleteQuiz = async (quizId: string) => {
-    setQuizzes((prevQuizzes) => prevQuizzes.filter((quiz) => quiz.id !== quizId));
-    toast({
-      title: "Quiz Deleted",
-      description: `Quiz with ID ${quizId} has been deleted. (Mocked)`,
-    });
+    try {
+      await deleteQuiz(quizId);
+      setQuizzes((prevQuizzes) => prevQuizzes.filter((quiz) => quiz.id !== quizId));
+      toast({
+        title: "Quiz Deleted",
+        description: `Quiz has been successfully deleted.`,
+      });
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: "Error Deleting Quiz",
+        description: `Failed to delete quiz. ${error instanceof Error ? error.message : ''}`,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAIGenerate = (quizId: string) => {
-     toast({
-      title: "AI Generation (Mock)",
-      description: `Triggered AI question generation for quiz ${quizId}. This is a placeholder.`,
-    });
-    // In a real app, navigate to an edit page or open a modal for AI generation
-    // For example: router.push(`/admin/quizzes/${quizId}/generate-ai`);
+     // For now, this navigates to the edit page where AI generation can be triggered from the form.
+     router.push(`/admin/quizzes/${quizId}/edit?ai-generate=true`);
   };
 
   return (
@@ -84,8 +90,8 @@ export function QuizzesTable({ initialQuizzes }: QuizzesTableProps) {
             <TableRow key={quiz.id}>
               <TableCell className="font-medium">{quiz.title}</TableCell>
               <TableCell>{quiz.associatedWithTitle}</TableCell>
-              <TableCell className="hidden md:table-cell">{quiz.associatedWithType}</TableCell>
-              <TableCell className="hidden md:table-cell">{quiz.questions.length}</TableCell>
+              <TableCell className="hidden md:table-cell">{quiz.associatedType}</TableCell>
+              <TableCell className="hidden md:table-cell">{quiz.questionsCount}</TableCell>
               <TableCell>
                 <AlertDialog>
                   <DropdownMenu>

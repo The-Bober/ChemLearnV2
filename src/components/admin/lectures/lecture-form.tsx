@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Lecture } from "@/types";
+import type { Lecture, LectureFormData as LectureFormDataType } from "@/types"; // Use LectureFormDataType
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { addLecture, updateLecture } from "@/services/lectureService"; // Import services
 
 const lectureSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -19,17 +20,20 @@ const lectureSchema = z.object({
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
 });
 
-type LectureFormData = z.infer<typeof lectureSchema>;
+// This type is inferred from the schema and matches LectureFormDataType structure
+type SchemaInferedLectureFormData = z.infer<typeof lectureSchema>;
+
 
 interface LectureFormProps {
-  initialData?: Lecture | null;
-  onSubmit: (data: LectureFormData) => Promise<void>; // Simulate async submission
+  initialData?: Lecture | null; // Lecture includes ID, form data does not
+  onSubmitProp?: (data: SchemaInferedLectureFormData) => Promise<void>; // Renamed to avoid conflict
+  lectureId?: string; // Pass ID for updates
 }
 
-export function LectureForm({ initialData, onSubmit }: LectureFormProps) {
+export function LectureForm({ initialData, lectureId }: LectureFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const form = useForm<LectureFormData>({
+  const form = useForm<SchemaInferedLectureFormData>({
     resolver: zodResolver(lectureSchema),
     defaultValues: {
       title: initialData?.title || "",
@@ -41,19 +45,27 @@ export function LectureForm({ initialData, onSubmit }: LectureFormProps) {
 
   const {formState: {isSubmitting}} = form;
 
-  const handleSubmit: SubmitHandler<LectureFormData> = async (data) => {
+  const handleSubmit: SubmitHandler<SchemaInferedLectureFormData> = async (data) => {
     try {
-      await onSubmit(data);
-      toast({
-        title: initialData ? "Lecture Updated" : "Lecture Created",
-        description: `Lecture "${data.title}" has been successfully ${initialData ? 'updated' : 'created'}.`,
-      });
-      router.push("/admin/lectures"); // Redirect to lectures list
-      router.refresh(); // Refresh server components
+      if (lectureId && initialData) { // Editing existing lecture
+        await updateLecture(lectureId, data);
+        toast({
+          title: "Lecture Updated",
+          description: `Lecture "${data.title}" has been successfully updated.`,
+        });
+      } else { // Creating new lecture
+        await addLecture(data);
+        toast({
+          title: "Lecture Created",
+          description: `Lecture "${data.title}" has been successfully created.`,
+        });
+      }
+      router.push("/admin/lectures"); 
+      router.refresh();
     } catch (error) {
       toast({
         title: "Error",
-        description: `Failed to ${initialData ? 'update' : 'create'} lecture. ${error instanceof Error ? error.message : ''}`,
+        description: `Failed to ${lectureId ? 'update' : 'create'} lecture. ${error instanceof Error ? error.message : ''}`,
         variant: "destructive",
       });
     }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Quiz, Question, Lecture, Lesson } from "@/types";
+import type { Quiz, Question, Lecture, Lesson, QuizFormShape } from "@/types"; // Using QuizFormShape
 import { useForm, type SubmitHandler, FormProvider, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,9 @@ import { QuestionForm } from "./question-form";
 import { v4 as uuidv4 } from "uuid";
 import { PlusCircle, Bot } from "lucide-react";
 import { generateQuizQuestions, type GenerateQuizQuestionsInput } from "@/ai/flows/generate-quiz-questions";
+import { addQuiz, updateQuiz } from "@/services/quizService"; // Import services
+import { useState } from "react";
+
 
 const questionOptionSchema = z.object({
   id: z.string().default(() => uuidv4()),
@@ -26,7 +29,7 @@ const questionSchema = z.object({
   id: z.string().default(() => uuidv4()),
   text: z.string().min(5, "Question text must be at least 5 characters"),
   type: z.enum(["true_false", "multiple_choice"]),
-  options: z.array(questionOptionSchema),
+  options: z.array(questionOptionSchema), // Keep options array here for Zod validation
   correctAnswer: z.string().min(1, "A correct answer must be selected/provided"),
   explanation: z.string().optional(),
 }).refine(data => {
@@ -36,44 +39,48 @@ const questionSchema = z.object({
     return true;
 }, {
     message: "Multiple choice questions must have at least 2 options and a selected correct answer.",
-    path: ["options"],
+    path: ["options"], // Check options path
 });
 
 
-const quizSchema = z.object({
+// This schema is for form validation
+const quizFormValidationSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().optional(),
   associationType: z.enum(["lesson", "lecture", "none"]).default("none"),
   associatedId: z.string().optional(),
   questions: z.array(questionSchema).min(1, "A quiz must have at least one question."),
+  durationMinutes: z.coerce.number().optional(),
 });
 
-export type QuizFormData = z.infer<typeof quizSchema>;
+// This type is inferred from the validation schema
+export type QuizFormData = z.infer<typeof quizFormValidationSchema>;
 
 interface QuizFormProps {
-  initialData?: Quiz | null;
+  initialData?: Quiz | null; // Full Quiz object for initial data
   lectures: Pick<Lecture, 'id' | 'title'>[];
-  lessons: Pick<Lesson, 'id' | 'title' | 'lectureId' | 'content'>[]; // Include content for AI generation
-  onSubmit: (data: QuizFormData) => Promise<void>;
+  lessons: Pick<Lesson, 'id' | 'title' | 'lectureId' | 'content'>[];
+  quizId?: string; // For updates
 }
 
-export function QuizForm({ initialData, lectures, lessons, onSubmit }: QuizFormProps) {
+export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormProps) {
   const router = useRouter();
   const { toast } = useToast();
 
   const defaultAssociationType = initialData?.lessonId ? "lesson" : initialData?.lectureId ? "lecture" : "none";
   const defaultAssociatedId = initialData?.lessonId || initialData?.lectureId || undefined;
 
-  const methods = useForm<QuizFormData>({
-    resolver: zodResolver(quizSchema),
+  const methods = useForm<QuizFormData>({ // Use QuizFormData for validation
+    resolver: zodResolver(quizFormValidationSchema),
     defaultValues: {
       title: initialData?.title || "",
       description: initialData?.description || "",
       associationType: defaultAssociationType,
       associatedId: defaultAssociatedId,
       questions: initialData?.questions && initialData.questions.length > 0 
-        ? initialData.questions.map(q => ({...q, options: q.options || []})) // Ensure options is always an array
+        ? initialData.questions.map(q => ({...q, options: q.options || []}))
         : [{ id: uuidv4(), text: "", type: "multiple_choice", options: [{id: uuidv4(), text:""}, {id:uuidv4(), text:""}], correctAnswer: "" }],
+      durationMinutes: initialData?.durationMinutes || undefined,
     },
   });
   
@@ -89,17 +96,25 @@ export function QuizForm({ initialData, lectures, lessons, onSubmit }: QuizFormP
 
   const handleActualSubmit: SubmitHandler<QuizFormData> = async (data) => {
     try {
-      await onSubmit(data);
-      toast({
-        title: initialData ? "Quiz Updated" : "Quiz Created",
-        description: `Quiz "${data.title}" has been successfully ${initialData ? 'updated' : 'created'}.`,
-      });
+      if (quizId && initialData) { // Editing
+        await updateQuiz(quizId, data);
+        toast({
+          title: "Quiz Updated",
+          description: `Quiz "${data.title}" has been successfully updated.`,
+        });
+      } else { // Creating
+        await addQuiz(data); // addQuiz now accepts QuizFormData
+        toast({
+          title: "Quiz Created",
+          description: `Quiz "${data.title}" has been successfully created.`,
+        });
+      }
       router.push("/admin/quizzes");
       router.refresh();
     } catch (error) {
       toast({
         title: "Error",
-        description: `Failed to ${initialData ? 'update' : 'create'} quiz. ${error instanceof Error ? error.message : ''}`,
+        description: `Failed to ${quizId ? 'update' : 'create'} quiz. ${error instanceof Error ? error.message : ''}`,
         variant: "destructive",
       });
     }
@@ -128,7 +143,7 @@ export function QuizForm({ initialData, lectures, lessons, onSubmit }: QuizFormP
     try {
         const input: GenerateQuizQuestionsInput = {
             lessonContent: lessonTextContent,
-            numberOfQuestions: 3, // Or make this configurable
+            numberOfQuestions: 3, 
         };
         const output = await generateQuizQuestions(input);
         
@@ -138,14 +153,15 @@ export function QuizForm({ initialData, lectures, lessons, onSubmit }: QuizFormP
             return {
                 id: uuidv4(),
                 text: aiQ.question,
-                type: "multiple_choice", // Assuming AI generates MCQs
+                type: "multiple_choice",
                 options: options,
-                correctAnswer: correctOption ? correctOption.id : (options.length > 0 ? options[0].id : ""), // Fallback
+                correctAnswer: correctOption ? correctOption.id : (options.length > 0 ? options[0].id : ""),
                 explanation: `AI Generated: Correct answer is ${aiQ.correctAnswer}`,
             };
         });
 
-        setValue("questions", [...watch("questions"), ...newAIQuestions]);
+        const currentQuestions = watch("questions");
+        setValue("questions", [...currentQuestions, ...newAIQuestions]);
         toast({ title: "AI Questions Generated", description: `${newAIQuestions.length} questions added to the quiz.` });
 
     } catch(err) {
@@ -155,7 +171,6 @@ export function QuizForm({ initialData, lectures, lessons, onSubmit }: QuizFormP
         setIsGeneratingAIQuestions(false);
     }
   };
-
 
   return (
     <FormProvider {...methods}>
@@ -187,6 +202,20 @@ export function QuizForm({ initialData, lectures, lessons, onSubmit }: QuizFormP
               </FormItem>
             )}
           />
+           <FormField
+            control={control}
+            name="durationMinutes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Duration (minutes, Optional)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="10" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
@@ -264,6 +293,9 @@ export function QuizForm({ initialData, lectures, lessons, onSubmit }: QuizFormP
             </Button>
              {errors.questions && typeof errors.questions === 'object' && !Array.isArray(errors.questions) && (
                 <p className="text-sm font-medium text-destructive mt-2">{(errors.questions as any).message}</p>
+            )}
+            {errors.questions && Array.isArray(errors.questions) && errors.questions.length > 0 && (
+                 <p className="text-sm font-medium text-destructive mt-2">Please ensure all questions are complete.</p>
             )}
           </div>
 

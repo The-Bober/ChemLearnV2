@@ -4,20 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { LecturesTable } from "@/components/admin/lectures/lectures-table";
-import { mockLecturesData, mockLessonsData } from "@/lib/mock-data"; // Using mock data
+import { getAllLectures } from "@/services/lectureService";
 import type { Lecture } from "@/types";
 
-// This function would eventually fetch data from Firestore
-async function getLectures(): Promise<Lecture[]> {
-  // Simulate fetching and calculating lesson counts
-  return mockLecturesData.map(lecture => ({
-    ...lecture,
-    lessonsCount: mockLessonsData.filter(lesson => lesson.lectureId === lecture.id).length
-  }));
-}
-
 export default async function AdminLecturesPage() {
-  const lectures = await getLectures();
+  const lectures: Lecture[] = await getAllLectures();
 
   return (
     <div className="space-y-8">

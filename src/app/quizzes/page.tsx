@@ -1,48 +1,14 @@
 
-import { mockQuizzesData, mockLecturesData, mockLessonsData } from "@/lib/mock-data";
-import type { Quiz } from "@/types";
+import { getAllQuizzesEnriched, type EnrichedQuiz as EnrichedQuizListItem } from "@/services/quizService";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight, HelpCircle, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-interface EnrichedQuizListItem extends Omit<Quiz, 'questions'> {
-  associatedTitle?: string;
-  associatedType?: 'Lesson' | 'Lecture';
-  questionCount: number;
-}
-
-// Simulate fetching quizzes and enriching them
-async function getQuizzesForListing(): Promise<EnrichedQuizListItem[]> {
-  return mockQuizzesData.map(quiz => {
-    let associatedTitle: string | undefined;
-    let associatedType: 'Lesson' | 'Lecture' | undefined;
-
-    if (quiz.lessonId) {
-      const lesson = mockLessonsData.find(l => l.id === quiz.lessonId);
-      associatedTitle = lesson?.title;
-      associatedType = 'Lesson';
-    } else if (quiz.lectureId) {
-      const lecture = mockLecturesData.find(l => l.id === quiz.lectureId);
-      associatedTitle = lecture?.title;
-      associatedType = 'Lecture';
-    }
-
-    return {
-      id: quiz.id,
-      title: quiz.title,
-      description: quiz.description,
-      durationMinutes: quiz.durationMinutes,
-      associatedTitle,
-      associatedType,
-      questionCount: quiz.questions.length,
-    };
-  });
-}
 
 export default async function QuizzesPage() {
-  const quizzes = await getQuizzesForListing();
+  const quizzes: EnrichedQuizListItem[] = await getAllQuizzesEnriched();
 
   return (
     <div className="space-y-8">
@@ -66,7 +32,7 @@ export default async function QuizzesPage() {
               <CardContent className="flex-grow space-y-3">
                 <div className="flex items-center text-sm text-muted-foreground">
                   <HelpCircle className="mr-2 h-4 w-4 text-accent" />
-                  <span>{quiz.questionCount} Questions</span>
+                  <span>{quiz.questionsCount} Questions</span>
                 </div>
                 {quiz.durationMinutes && (
                   <div className="flex items-center text-sm text-muted-foreground">
@@ -74,7 +40,7 @@ export default async function QuizzesPage() {
                     <span>{quiz.durationMinutes} Minutes</span>
                   </div>
                 )}
-                {quiz.associatedTitle && quiz.associatedType && (
+                {quiz.associatedTitle && quiz.associatedType && quiz.associatedType !== 'N/A' && (
                   <Badge variant="secondary" className="mt-1">
                     Related to {quiz.associatedType}: {quiz.associatedTitle}
                   </Badge>

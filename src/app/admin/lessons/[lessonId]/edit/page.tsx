@@ -1,59 +1,61 @@
 
 "use client";
 
-import { LessonForm, type LessonFormData } from "@/components/admin/lessons/lesson-form";
+import { LessonForm } from "@/components/admin/lessons/lesson-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockLessonsData, mockLecturesData } from "@/lib/mock-data";
-import type { Lesson } from "@/types";
-import { useEffect, useState, use } from "react"; // Import use
+import { getLessonById, getLecturesForSelect } from "@/services/lessonService";
+import type { Lesson, Lecture } from "@/types";
+import { useEffect, useState, use } from "react";
 import { notFound } from "next/navigation";
 
-// Interface for the resolved params object
 interface LessonPageParams {
   lessonId: string;
 }
 
-// Props for the page component, params can be a Promise
 interface EditLessonPageProps {
   params: Promise<LessonPageParams> | LessonPageParams;
 }
 
-// Simulate fetching a lesson by ID
-async function getLessonById(id: string): Promise<Lesson | null> {
-  const lesson = mockLessonsData.find(l => l.id === id);
-  return lesson || null;
-}
-
-// Simulate updating a lesson
-async function handleUpdateLesson(id: string, data: LessonFormData) {
-  console.log(`Updating lesson ${id} with data (mock):`, data);
-  const lessonIndex = mockLessonsData.findIndex(l => l.id === id);
-  if (lessonIndex !== -1) {
-    mockLessonsData[lessonIndex] = { ...mockLessonsData[lessonIndex], ...data, id }; // ensure id is preserved
-  }
-  await new Promise(resolve => setTimeout(resolve, 500));
-}
-
-const lecturesForSelect = mockLecturesData.map(l => ({id: l.id, title: l.title}));
-
 export default function EditLessonPage({ params: paramsProp }: EditLessonPageProps) {
-  // Unwrap the promise using React.use() if it's a promise, otherwise use directly
   const params = typeof (paramsProp as any)?.then === 'function' ? use(paramsProp as Promise<LessonPageParams>) : paramsProp as LessonPageParams;
   
   const [lesson, setLesson] = useState<Lesson | null | undefined>(undefined);
+  const [lecturesForSelect, setLecturesForSelect] = useState<Pick<Lecture, 'id' | 'title'>[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchLesson() {
+    async function fetchData() {
       if (params?.lessonId) {
-        const fetchedLesson = await getLessonById(params.lessonId);
-        setLesson(fetchedLesson);
+        setLoading(true);
+        try {
+          const [fetchedLesson, fetchedLectures] = await Promise.all([
+            getLessonById(params.lessonId),
+            getLecturesForSelect()
+          ]);
+          setLesson(fetchedLesson);
+          setLecturesForSelect(fetchedLectures);
+        } catch (error) {
+          console.error("Failed to fetch lesson or lectures", error);
+          // Potentially set an error state here
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
       }
     }
-    fetchLesson();
-  }, [params]); // Depend on the resolved params object
+    if (params?.lessonId) {
+        fetchData();
+    } else {
+      // Handle case where params.lessonId might not be immediately available if params is a promise not yet resolved.
+      // This might require a loading state before params is resolved.
+      // However, `use(paramsProp)` should suspend until params is resolved.
+      setLoading(false); 
+    }
+  }, [params]);
 
-  if (lesson === undefined && params?.lessonId) {
-    return <p>Loading lesson data for {params.lessonId}...</p>;
+  if (loading || (lesson === undefined && params?.lessonId)) {
+    return <p>Loading lesson data for {params?.lessonId || '...'}...</p>;
   }
 
   if (!lesson && params?.lessonId) {
@@ -64,10 +66,7 @@ export default function EditLessonPage({ params: paramsProp }: EditLessonPagePro
     return <p>Loading parameters...</p>;
   }
   
-  const onSubmit = async (data: LessonFormData) => {
-    await handleUpdateLesson(params.lessonId, data);
-  };
-
+  // onSubmit is now handled within LessonForm
   return (
     <div className="space-y-8">
       <div>
@@ -82,8 +81,8 @@ export default function EditLessonPage({ params: paramsProp }: EditLessonPagePro
           <CardDescription>Update the information for this lesson.</CardDescription>
         </CardHeader>
         <CardContent>
-          {lesson ? (
-            <LessonForm initialData={lesson} lectures={lecturesForSelect} onSubmit={onSubmit} />
+          {lesson && lecturesForSelect.length > 0 ? (
+            <LessonForm initialData={lesson} lectures={lecturesForSelect} lessonId={params.lessonId} />
           ) : (
             <p>Loading form...</p>
           )}
@@ -92,4 +91,3 @@ export default function EditLessonPage({ params: paramsProp }: EditLessonPagePro
     </div>
   );
 }
-

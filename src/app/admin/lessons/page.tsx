@@ -4,26 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { LessonsTable } from "@/components/admin/lessons/lessons-table";
-import { mockLessonsData, mockLecturesData } from "@/lib/mock-data";
+import { getAllLessonsEnriched } from "@/services/lessonService";
 import type { Lesson } from "@/types";
 
 interface EnrichedLesson extends Lesson {
   lectureTitle?: string;
 }
 
-async function getLessons(): Promise<EnrichedLesson[]> {
-  // Simulate fetching and enriching lesson data
-  return mockLessonsData.map(lesson => {
-    const lecture = mockLecturesData.find(l => l.id === lesson.lectureId);
-    return {
-      ...lesson,
-      lectureTitle: lecture?.title || "N/A",
-    };
-  });
-}
-
 export default async function AdminLessonsPage() {
-  const lessons = await getLessons();
+  const lessons: EnrichedLesson[] = await getAllLessonsEnriched();
 
   return (
     <div className="space-y-8">

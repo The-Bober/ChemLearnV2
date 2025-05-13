@@ -1,17 +1,25 @@
 
+import type { Timestamp } from 'firebase/firestore';
+
 export interface Lecture {
   id: string;
   title: string;
   description: string;
-  order: number; // Added for ordering lectures
+  order: number; 
   imageUrl?: string;
-  lessonsCount?: number; // Calculated or maintained
+  lessonsCount?: number; 
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
+
+// Used for forms, omits id and calculated fields
+export interface LectureFormData extends Omit<Lecture, 'id' | 'lessonsCount' | 'createdAt' | 'updatedAt'> {}
+
 
 export type LessonContentType = "text" | "formula" | "image" | "video";
 
 export interface LessonContentBlock {
-  id: string; // Added for keying in UI if dynamic
+  id: string; 
   type: LessonContentType;
   value: string;
   altText?: string;
@@ -19,27 +27,32 @@ export interface LessonContentBlock {
 
 export interface Lesson {
   id:string;
-  lectureId: string; // To associate with a lecture
+  lectureId: string; 
   title: string;
-  order: number; // Added for ordering lessons within a lecture
+  order: number; 
   content: LessonContentBlock[];
   estimatedTimeMinutes?: number;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
+
+export interface LessonFormData extends Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'> {}
+
 
 export type QuestionType = "true_false" | "multiple_choice";
 
 export interface QuestionOption {
-  id: string; // e.g., "opt1", "opt2"
+  id: string; 
   text: string;
 }
 
 export interface Question {
-  id: string; // e.g., "q1", "q2"
+  id: string; 
   quizId?: string; 
   lessonId?: string;
   text: string;
   type: QuestionType;
-  options: QuestionOption[]; // Ensure this is always present, even if empty for true/false after processing
+  options: QuestionOption[]; 
   correctAnswer: string; // For true_false: "true" or "false". For MC: id of the correct QuestionOption.
   explanation?: string;
 }
@@ -50,8 +63,10 @@ export interface Quiz {
   lectureId?: string;
   title: string;
   description?: string;
-  questions: Question[]; // Embedded questions
-  durationMinutes?: number; // Time limit for the quiz in minutes
+  questions: Question[]; 
+  durationMinutes?: number; 
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 // For AI Quiz Generation
@@ -63,3 +78,22 @@ export interface AIQuestion extends Omit<Question, 'id' | 'quizId' | 'lessonId' 
 export interface AIQuizOutput {
   questions: AIQuestion[];
 }
+
+// For QuizForm
+export interface QuizFormDataCore {
+  title: string;
+  description?: string;
+  associationType: "lesson" | "lecture" | "none";
+  associatedId?: string;
+  questions: Question[]; // Should be Question[], not the Zod schema version for internal form state
+  durationMinutes?: number;
+}
+
+// This is what QuizForm will work with internally and submit
+// It matches the Quiz schema more closely for saving, but has form-specific fields.
+export interface QuizFormShape extends Omit<Quiz, 'id' | 'createdAt' | 'updatedAt' | 'questions'> {
+  associationType: "lesson" | "lecture" | "none"; // Helper for form logic
+  associatedId?: string; // Helper for form logic
+  questions: Question[]; // Use the actual Question type
+}
+

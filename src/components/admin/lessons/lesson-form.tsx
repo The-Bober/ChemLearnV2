@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Lesson, Lecture, LessonContentBlock } from "@/types";
+import type { Lesson, Lecture, LessonContentBlock, LessonFormData as LessonFormDataType } from "@/types";
 import { useForm, type SubmitHandler, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,7 +14,9 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from "uuid";
 import { Trash2, PlusCircle } from "lucide-react";
-import { Card } from "@/components/ui/card"; // Added import for Card
+import { Card } from "@/components/ui/card";
+import { addLesson, updateLesson } from "@/services/lessonService"; // Import services
+import type { useEffect, useState } from "react"; // For potential future state needs
 
 const lessonContentBlockSchema = z.object({
   id: z.string().default(() => uuidv4()),
@@ -31,15 +33,16 @@ const lessonSchema = z.object({
   content: z.array(lessonContentBlockSchema).min(1, "Lesson must have at least one content block."),
 });
 
+// Matches LessonFormDataType from types/index.ts
 export type LessonFormData = z.infer<typeof lessonSchema>;
 
 interface LessonFormProps {
-  initialData?: Lesson | null;
-  lectures: Pick<Lecture, 'id' | 'title'>[]; // For lecture selection dropdown
-  onSubmit: (data: LessonFormData) => Promise<void>;
+  initialData?: Lesson | null; // Lesson includes ID
+  lectures: Pick<Lecture, 'id' | 'title'>[];
+  lessonId?: string; // For updates
 }
 
-export function LessonForm({ initialData, lectures, onSubmit }: LessonFormProps) {
+export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   
@@ -51,7 +54,7 @@ export function LessonForm({ initialData, lectures, onSubmit }: LessonFormProps)
       order: initialData?.order || 1,
       estimatedTimeMinutes: initialData?.estimatedTimeMinutes || undefined,
       content: initialData?.content && initialData.content.length > 0 
-        ? initialData.content.map(c => ({...c, id: c.id || uuidv4()})) // Ensure content blocks have IDs
+        ? initialData.content.map(c => ({...c, id: c.id || uuidv4()})) 
         : [{ id: uuidv4(), type: "text", value: "" }],
     },
   });
@@ -65,17 +68,25 @@ export function LessonForm({ initialData, lectures, onSubmit }: LessonFormProps)
 
   const handleSubmit: SubmitHandler<LessonFormData> = async (data) => {
     try {
-      await onSubmit(data);
-      toast({
-        title: initialData ? "Lesson Updated" : "Lesson Created",
-        description: `Lesson "${data.title}" has been successfully ${initialData ? 'updated' : 'created'}.`,
-      });
+      if (lessonId && initialData) {
+        await updateLesson(lessonId, data);
+         toast({
+          title: "Lesson Updated",
+          description: `Lesson "${data.title}" has been successfully updated.`,
+        });
+      } else {
+        await addLesson(data);
+        toast({
+          title: "Lesson Created",
+          description: `Lesson "${data.title}" has been successfully created.`,
+        });
+      }
       router.push("/admin/lessons");
       router.refresh();
     } catch (error) {
       toast({
         title: "Error",
-        description: `Failed to ${initialData ? 'update' : 'create'} lesson. ${error instanceof Error ? error.message : ''}`,
+        description: `Failed to ${lessonId ? 'update' : 'create'} lesson. ${error instanceof Error ? error.message : ''}`,
         variant: "destructive",
       });
     }
@@ -249,4 +260,3 @@ export function LessonForm({ initialData, lectures, onSubmit }: LessonFormProps)
     </Form>
   );
 }
-

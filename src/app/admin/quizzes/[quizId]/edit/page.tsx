@@ -1,79 +1,91 @@
 
 "use client";
 
-import { QuizForm, type QuizFormData } from "@/components/admin/quizzes/quiz-form";
+import { QuizForm } from "@/components/admin/quizzes/quiz-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockQuizzesData, mockLecturesData, mockLessonsData } from "@/lib/mock-data";
-import type { Quiz } from "@/types";
-import { useEffect, useState, use } from "react"; // Import use
-import { notFound } from "next/navigation";
+import { getQuizById, getLessonsForSelect } from "@/services/quizService";
+import { getLecturesForSelect } from "@/services/lessonService";
+import type { Quiz, Lecture, Lesson } from "@/types";
+import { useEffect, useState, use } from "react";
+import { notFound, useSearchParams } from "next/navigation"; // Added useSearchParams
 import { v4 as uuidv4 } from 'uuid';
 
-// Interface for the resolved params object
+
 interface QuizPageParams {
   quizId: string;
 }
 
-// Props for the page component, params can be a Promise
 interface EditQuizPageProps {
   params: Promise<QuizPageParams> | QuizPageParams;
 }
 
-// Simulate fetching a quiz by ID
-async function getQuizById(id: string): Promise<Quiz | null> {
-  const quiz = mockQuizzesData.find(q => q.id === id);
-  if (quiz) { // Ensure questions and options have IDs for the form
-    return {
-      ...quiz,
-      questions: quiz.questions.map(q => ({
-        ...q,
-        id: q.id || uuidv4(),
-        options: q.options.map(opt => ({...opt, id: opt.id || uuidv4()}))
-      }))
-    };
-  }
-  return null;
-}
-
-// Simulate updating a quiz
-async function handleUpdateQuiz(id: string, data: QuizFormData) {
-  console.log(`Updating quiz ${id} with data (mock):`, data);
-  const quizIndex = mockQuizzesData.findIndex(q => q.id === id);
-  if (quizIndex !== -1) {
-    mockQuizzesData[quizIndex] = {
-      ...mockQuizzesData[quizIndex],
-      id, // ensure id is preserved
-      title: data.title,
-      description: data.description,
-      lessonId: data.associationType === "lesson" ? data.associatedId : undefined,
-      lectureId: data.associationType === "lecture" ? data.associatedId : undefined,
-      questions: data.questions.map(q => ({...q, id: q.id || uuidv4(), options: q.options.map(opt => ({...opt, id: opt.id || uuidv4()}))})),
-    };
-  }
-  await new Promise(resolve => setTimeout(resolve, 500));
-}
-
-const lecturesForSelect = mockLecturesData.map(l => ({id: l.id, title: l.title}));
-const lessonsForSelect = mockLessonsData.map(l => ({id: l.id, title: l.title, lectureId: l.lectureId, content: l.content }));
-
 export default function EditQuizPage({ params: paramsProp }: EditQuizPageProps) {
-  // Unwrap the promise using React.use() if it's a promise, otherwise use directly
   const params = typeof (paramsProp as any)?.then === 'function' ? use(paramsProp as Promise<QuizPageParams>) : paramsProp as QuizPageParams;
+  const searchParams = useSearchParams(); // For AI generation trigger
 
   const [quiz, setQuiz] = useState<Quiz | null | undefined>(undefined);
+  const [lectures, setLectures] = useState<Pick<Lecture, 'id' | 'title'>[]>([]);
+  const [lessons, setLessons] = useState<Pick<Lesson, 'id' | 'title' | 'lectureId' | 'content'>[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchQuiz() {
+    async function fetchData() {
       if (params?.quizId) {
-        const fetchedQuiz = await getQuizById(params.quizId);
-        setQuiz(fetchedQuiz);
+        setLoading(true);
+        try {
+          const [fetchedQuiz, fetchedLectures, fetchedLessons] = await Promise.all([
+            getQuizById(params.quizId),
+            getLecturesForSelect(),
+            getLessonsForSelect()
+          ]);
+
+          if (fetchedQuiz) {
+            // Ensure questions and options have IDs for the form
+            const quizWithEnsuredIds = {
+              ...fetchedQuiz,
+              questions: fetchedQuiz.questions.map(q => ({
+                ...q,
+                id: q.id || uuidv4(),
+                options: q.options ? q.options.map(opt => ({...opt, id: opt.id || uuidv4()})) : []
+              }))
+            };
+            setQuiz(quizWithEnsuredIds);
+          } else {
+            setQuiz(null);
+          }
+          setLectures(fetchedLectures);
+          setLessons(fetchedLessons);
+
+        } catch (error) {
+            console.error("Failed to fetch data for quiz edit", error);
+        } finally {
+            setLoading(false);
+        }
+      } else {
+        setLoading(false);
       }
     }
-    fetchQuiz();
-  }, [params]); // Depend on the resolved params object
+     if (params?.quizId) {
+        fetchData();
+    } else {
+      setLoading(false);
+    }
+  }, [params]);
 
-  if (quiz === undefined && params?.quizId) {
-    return <p>Loading quiz data for {params.quizId}...</p>;
+  // Effect to trigger AI generation if query param is set
+  // This is a placeholder for how the QuizForm could be hinted to start AI generation.
+  // The actual AI call is within QuizForm.
+  useEffect(() => {
+    if (searchParams.get('ai-generate') === 'true' && quiz) {
+      // Logic to trigger AI generation or set a flag for QuizForm can go here
+      // For now, QuizForm itself will handle the AI button click.
+      // This is more of a conceptual note if direct triggering from URL was needed.
+    }
+  }, [searchParams, quiz]);
+
+
+  if (loading || (quiz === undefined && params?.quizId)) {
+    return <p>Loading quiz data for {params?.quizId || '...'}...</p>;
   }
 
   if (!quiz && params?.quizId) {
@@ -84,10 +96,7 @@ export default function EditQuizPage({ params: paramsProp }: EditQuizPageProps) 
     return <p>Loading parameters...</p>;
   }
   
-  const onSubmit = async (data: QuizFormData) => {
-    await handleUpdateQuiz(params.quizId, data);
-  };
-
+  // onSubmit is handled by QuizForm
   return (
     <div className="space-y-8">
       <div>
@@ -102,8 +111,8 @@ export default function EditQuizPage({ params: paramsProp }: EditQuizPageProps) 
           <CardDescription>Update the information for this quiz.</CardDescription>
         </CardHeader>
         <CardContent>
-          {quiz ? (
-            <QuizForm initialData={quiz} lectures={lecturesForSelect} lessons={lessonsForSelect} onSubmit={onSubmit} />
+          {quiz && lectures.length > 0 && lessons.length > 0 ? (
+            <QuizForm initialData={quiz} lectures={lectures} lessons={lessons} quizId={params.quizId} />
           ) : (
             <p>Loading form...</p>
           )}
@@ -112,4 +121,3 @@ export default function EditQuizPage({ params: paramsProp }: EditQuizPageProps) 
     </div>
   );
 }
-

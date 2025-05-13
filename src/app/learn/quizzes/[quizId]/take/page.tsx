@@ -1,5 +1,5 @@
 
-import { mockQuizzesData } from "@/lib/mock-data";
+import { getQuizById } from "@/services/quizService";
 import type { Quiz } from "@/types";
 import { QuizTaker } from "@/components/learn/quiz-taker";
 import { notFound } from "next/navigation";
@@ -14,24 +14,8 @@ interface QuizPageProps {
   };
 }
 
-// Simulate fetching a quiz by ID
-async function getQuiz(quizId: string): Promise<Quiz | null> {
-  // Ensure questions always have an options array, even if empty for true/false
-  const quiz = mockQuizzesData.find(q => q.id === quizId);
-  if (quiz) {
-    return {
-      ...quiz,
-      questions: quiz.questions.map(question => ({
-        ...question,
-        options: question.options || [] 
-      }))
-    };
-  }
-  return null;
-}
-
 export default async function TakeQuizPage({ params }: QuizPageProps) {
-  const quiz = await getQuiz(params.quizId);
+  const quiz = await getQuizById(params.quizId);
 
   if (!quiz) {
     notFound();

@@ -1,32 +1,16 @@
 
-"use client";
-
-import { QuizForm, type QuizFormData } from "@/components/admin/quizzes/quiz-form";
+import { QuizForm } from "@/components/admin/quizzes/quiz-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockQuizzesData, mockLecturesData, mockLessonsData } from "@/lib/mock-data";
-import type { Quiz } from "@/types";
-import { v4 as uuidv4 } from 'uuid';
+import { getLecturesForSelect } from "@/services/lessonService"; // Can reuse this
+import { getLessonsForSelect } from "@/services/quizService";
+import type { Lecture, Lesson } from "@/types";
 
-// Simulate adding a quiz
-async function handleAddQuiz(data: QuizFormData) {
-  console.log("Submitting new quiz data (mock):", data);
-  const newQuiz: Quiz = {
-    id: uuidv4(),
-    title: data.title,
-    description: data.description,
-    lessonId: data.associationType === "lesson" ? data.associatedId : undefined,
-    lectureId: data.associationType === "lecture" ? data.associatedId : undefined,
-    questions: data.questions.map(q => ({...q, id: q.id || uuidv4(), options: q.options.map(opt => ({...opt, id: opt.id || uuidv4()}))})),
-  };
-  mockQuizzesData.push(newQuiz);
-  await new Promise(resolve => setTimeout(resolve, 500));
-}
+export default async function NewQuizPage() {
+  const [lecturesForSelect, lessonsForSelect] = await Promise.all([
+    getLecturesForSelect(),
+    getLessonsForSelect() 
+  ]);
 
-const lecturesForSelect = mockLecturesData.map(l => ({id: l.id, title: l.title}));
-const lessonsForSelect = mockLessonsData.map(l => ({id: l.id, title: l.title, lectureId: l.lectureId, content: l.content }));
-
-
-export default function NewQuizPage() {
   return (
     <div className="space-y-8">
       <div>
@@ -41,7 +25,7 @@ export default function NewQuizPage() {
           <CardDescription>Provide information for the new quiz, add questions, and associate it if needed.</CardDescription>
         </CardHeader>
         <CardContent>
-          <QuizForm lectures={lecturesForSelect} lessons={lessonsForSelect} onSubmit={handleAddQuiz} />
+          <QuizForm lectures={lecturesForSelect} lessons={lessonsForSelect} />
         </CardContent>
       </Card>
     </div>
