@@ -3,15 +3,16 @@
 
 import type { User as FirebaseUser, AuthError } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase'; // Ensure db is imported
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut as firebaseSignOut 
 } from 'firebase/auth';
+import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'; // Import Firestore methods
 import type { PropsWithChildren } from 'react';
-import { logActivity } from '@/services/activityService'; // Import activity logger
+import { logActivity } from '@/services/activityService'; 
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -33,10 +34,35 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        setIsAdmin(firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL);
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const isEmailAdmin = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+
+        if (userDocSnap.exists()) {
+          // If user doc exists, use its isAdmin field.
+          // If the email matches admin email but Firestore says not admin, update Firestore (admin logged in, record was wrong)
+          if (isEmailAdmin && userDocSnap.data().isAdmin !== true) {
+            await setDoc(userDocRef, { isAdmin: true }, { merge: true });
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(userDocSnap.data().isAdmin === true);
+          }
+        } else {
+          // User doc doesn't exist. Create it.
+          // This handles first login for users (including admin) after these changes.
+          await setDoc(userDocRef, {
+            email: firebaseUser.email,
+            uid: firebaseUser.uid,
+            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+            photoURL: firebaseUser.photoURL || '',
+            isAdmin: isEmailAdmin,
+            createdAt: Timestamp.now(),
+          });
+          setIsAdmin(isEmailAdmin);
+        }
       } else {
         setIsAdmin(false);
       }
@@ -53,10 +79,11 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);
-      setIsAdmin(userCredential.user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL);
+      const firebaseUser = userCredential.user;
+      // Auth state change will handle setting user and isAdmin from Firestore
+      // No need to duplicate logic here, onAuthStateChanged will run.
       setLoading(false);
-      return userCredential.user;
+      return firebaseUser;
     } catch (e) {
       const authError = e as AuthError;
       setError(authError.message);
@@ -70,13 +97,27 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);
-      setIsAdmin(userCredential.user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL);
-      setLoading(false);
-      if (userCredential.user) {
-        await logActivity('user_registered', `User "${userCredential.user.email}" registered.`, userCredential.user.uid, userCredential.user.uid);
-      }
-      return userCredential.user;
+      const firebaseUser = userCredential.user;
+      
+      const isAdminUser = firebaseUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+      
+      // Create user document in Firestore
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      await setDoc(userDocRef, {
+        email: firebaseUser.email,
+        uid: firebaseUser.uid,
+        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+        photoURL: firebaseUser.photoURL || '',
+        isAdmin: isAdminUser,
+        createdAt: Timestamp.now(),
+      });
+
+      // setUser(firebaseUser); // onAuthStateChanged will handle this
+      // setIsAdmin(isAdminUser); // onAuthStateChanged will handle this by reading from Firestore
+
+      setLoading(false); // Set loading false after operations
+      await logActivity('user_registered', `User "${firebaseUser.email}" registered.`, firebaseUser.uid, firebaseUser.uid);
+      return firebaseUser;
     } catch (e) {
       const authError = e as AuthError;
       setError(authError.message);
@@ -90,13 +131,13 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     setError(null);
     try {
       await firebaseSignOut(auth);
-      setUser(null);
-      setIsAdmin(false);
+      // setUser(null); // onAuthStateChanged will handle this
+      // setIsAdmin(false); // onAuthStateChanged will handle this
     } catch (e) {
         const authError = e as AuthError;
         setError(authError.message);
     } finally {
-        setLoading(false);
+        // setLoading(false); // onAuthStateChanged will set loading to false
     }
   };
 
