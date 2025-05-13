@@ -6,13 +6,17 @@ import { LectureForm } from "@/components/admin/lectures/lecture-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { mockLecturesData } from "@/lib/mock-data"; // For demo purposes
 import type { Lecture } from "@/types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react"; // Import use
 import { notFound } from "next/navigation";
 
+// Interface for the resolved params object
+interface LecturePageParams {
+  lectureId: string;
+}
+
+// Props for the page component, params can be a Promise
 interface EditLecturePageProps {
-  params: {
-    lectureId: string;
-  };
+  params: Promise<LecturePageParams> | LecturePageParams;
 }
 
 // Simulate fetching a lecture by ID
@@ -31,26 +35,39 @@ async function handleUpdateLecture(id: string, data: Partial<Omit<Lecture, 'id' 
   await new Promise(resolve => setTimeout(resolve, 500));
 }
 
-export default function EditLecturePage({ params }: EditLecturePageProps) {
+export default function EditLecturePage({ params: paramsProp }: EditLecturePageProps) {
+  // Unwrap the promise using React.use() if it's a promise, otherwise use directly
+  const params = typeof (paramsProp as any)?.then === 'function' ? use(paramsProp as Promise<LecturePageParams>) : paramsProp as LecturePageParams;
+  
   const [lecture, setLecture] = useState<Lecture | null | undefined>(undefined); // undefined for loading state
 
   useEffect(() => {
     async function fetchLecture() {
-      const fetchedLecture = await getLectureById(params.lectureId);
-      setLecture(fetchedLecture);
+      // params is now the resolved object: { lectureId: string }
+      if (params?.lectureId) {
+        const fetchedLecture = await getLectureById(params.lectureId);
+        setLecture(fetchedLecture);
+      }
     }
     fetchLecture();
-  }, [params.lectureId]);
+  }, [params]); // Depend on the resolved params object
 
-  if (lecture === undefined) {
-    return <p>Loading lecture data...</p>; // Or a skeleton loader
+  if (lecture === undefined && params?.lectureId) { // Added check for params.lectureId to ensure params is resolved
+    return <p>Loading lecture data for {params.lectureId}...</p>; // Or a skeleton loader
   }
 
-  if (!lecture) {
-    notFound(); // If lecture is null after fetching
+  if (!lecture && params?.lectureId) { // if params is resolved but lecture is not found
+    notFound(); 
   }
   
+  // If params itself hasn't resolved yet (e.g. `use` is suspending)
+  if (!params?.lectureId && lecture === undefined) {
+    return <p>Loading parameters...</p>;
+  }
+
+
   const onSubmit = async (data: Omit<Lecture, 'id' | 'lessonsCount'>) => {
+    // params.lectureId is available here as params is resolved
     await handleUpdateLecture(params.lectureId, data);
   };
 
@@ -59,7 +76,7 @@ export default function EditLecturePage({ params }: EditLecturePageProps) {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Edit Lecture</h1>
         <p className="text-muted-foreground">
-          Modify the details for the lecture: {lecture?.title}.
+          Modify the details for the lecture: {lecture?.title || params.lectureId}.
         </p>
       </div>
       <Card className="shadow-lg">
@@ -68,9 +85,14 @@ export default function EditLecturePage({ params }: EditLecturePageProps) {
           <CardDescription>Update the information for this lecture.</CardDescription>
         </CardHeader>
         <CardContent>
-          <LectureForm initialData={lecture} onSubmit={onSubmit} />
+          {lecture ? (
+            <LectureForm initialData={lecture} onSubmit={onSubmit} />
+          ) : (
+            <p>Loading form...</p> // Or skeleton for form
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

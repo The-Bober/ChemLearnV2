@@ -4,14 +4,18 @@
 import { LessonForm, type LessonFormData } from "@/components/admin/lessons/lesson-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { mockLessonsData, mockLecturesData } from "@/lib/mock-data";
-import type { Lesson, Lecture } from "@/types";
-import { useEffect, useState } from "react";
+import type { Lesson } from "@/types";
+import { useEffect, useState, use } from "react"; // Import use
 import { notFound } from "next/navigation";
 
+// Interface for the resolved params object
+interface LessonPageParams {
+  lessonId: string;
+}
+
+// Props for the page component, params can be a Promise
 interface EditLessonPageProps {
-  params: {
-    lessonId: string;
-  };
+  params: Promise<LessonPageParams> | LessonPageParams;
 }
 
 // Simulate fetching a lesson by ID
@@ -32,23 +36,32 @@ async function handleUpdateLesson(id: string, data: LessonFormData) {
 
 const lecturesForSelect = mockLecturesData.map(l => ({id: l.id, title: l.title}));
 
-export default function EditLessonPage({ params }: EditLessonPageProps) {
+export default function EditLessonPage({ params: paramsProp }: EditLessonPageProps) {
+  // Unwrap the promise using React.use() if it's a promise, otherwise use directly
+  const params = typeof (paramsProp as any)?.then === 'function' ? use(paramsProp as Promise<LessonPageParams>) : paramsProp as LessonPageParams;
+  
   const [lesson, setLesson] = useState<Lesson | null | undefined>(undefined);
 
   useEffect(() => {
     async function fetchLesson() {
-      const fetchedLesson = await getLessonById(params.lessonId);
-      setLesson(fetchedLesson);
+      if (params?.lessonId) {
+        const fetchedLesson = await getLessonById(params.lessonId);
+        setLesson(fetchedLesson);
+      }
     }
     fetchLesson();
-  }, [params.lessonId]);
+  }, [params]); // Depend on the resolved params object
 
-  if (lesson === undefined) {
-    return <p>Loading lesson data...</p>;
+  if (lesson === undefined && params?.lessonId) {
+    return <p>Loading lesson data for {params.lessonId}...</p>;
   }
 
-  if (!lesson) {
+  if (!lesson && params?.lessonId) {
     notFound();
+  }
+
+  if (!params?.lessonId && lesson === undefined) {
+    return <p>Loading parameters...</p>;
   }
   
   const onSubmit = async (data: LessonFormData) => {
@@ -60,7 +73,7 @@ export default function EditLessonPage({ params }: EditLessonPageProps) {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Edit Lesson</h1>
         <p className="text-muted-foreground">
-          Modify the details for the lesson: {lesson?.title}.
+          Modify the details for the lesson: {lesson?.title || params.lessonId}.
         </p>
       </div>
       <Card className="shadow-lg">
@@ -69,9 +82,14 @@ export default function EditLessonPage({ params }: EditLessonPageProps) {
           <CardDescription>Update the information for this lesson.</CardDescription>
         </CardHeader>
         <CardContent>
-          <LessonForm initialData={lesson} lectures={lecturesForSelect} onSubmit={onSubmit} />
+          {lesson ? (
+            <LessonForm initialData={lesson} lectures={lecturesForSelect} onSubmit={onSubmit} />
+          ) : (
+            <p>Loading form...</p>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

@@ -5,15 +5,18 @@ import { QuizForm, type QuizFormData } from "@/components/admin/quizzes/quiz-for
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { mockQuizzesData, mockLecturesData, mockLessonsData } from "@/lib/mock-data";
 import type { Quiz } from "@/types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react"; // Import use
 import { notFound } from "next/navigation";
 import { v4 as uuidv4 } from 'uuid';
 
+// Interface for the resolved params object
+interface QuizPageParams {
+  quizId: string;
+}
 
+// Props for the page component, params can be a Promise
 interface EditQuizPageProps {
-  params: {
-    quizId: string;
-  };
+  params: Promise<QuizPageParams> | QuizPageParams;
 }
 
 // Simulate fetching a quiz by ID
@@ -53,23 +56,32 @@ async function handleUpdateQuiz(id: string, data: QuizFormData) {
 const lecturesForSelect = mockLecturesData.map(l => ({id: l.id, title: l.title}));
 const lessonsForSelect = mockLessonsData.map(l => ({id: l.id, title: l.title, lectureId: l.lectureId, content: l.content }));
 
-export default function EditQuizPage({ params }: EditQuizPageProps) {
+export default function EditQuizPage({ params: paramsProp }: EditQuizPageProps) {
+  // Unwrap the promise using React.use() if it's a promise, otherwise use directly
+  const params = typeof (paramsProp as any)?.then === 'function' ? use(paramsProp as Promise<QuizPageParams>) : paramsProp as QuizPageParams;
+
   const [quiz, setQuiz] = useState<Quiz | null | undefined>(undefined);
 
   useEffect(() => {
     async function fetchQuiz() {
-      const fetchedQuiz = await getQuizById(params.quizId);
-      setQuiz(fetchedQuiz);
+      if (params?.quizId) {
+        const fetchedQuiz = await getQuizById(params.quizId);
+        setQuiz(fetchedQuiz);
+      }
     }
     fetchQuiz();
-  }, [params.quizId]);
+  }, [params]); // Depend on the resolved params object
 
-  if (quiz === undefined) {
-    return <p>Loading quiz data...</p>;
+  if (quiz === undefined && params?.quizId) {
+    return <p>Loading quiz data for {params.quizId}...</p>;
   }
 
-  if (!quiz) {
+  if (!quiz && params?.quizId) {
     notFound();
+  }
+
+  if (!params?.quizId && quiz === undefined) {
+    return <p>Loading parameters...</p>;
   }
   
   const onSubmit = async (data: QuizFormData) => {
@@ -81,7 +93,7 @@ export default function EditQuizPage({ params }: EditQuizPageProps) {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Edit Quiz</h1>
         <p className="text-muted-foreground">
-          Modify the details for the quiz: {quiz?.title}.
+          Modify the details for the quiz: {quiz?.title || params.quizId}.
         </p>
       </div>
       <Card className="shadow-lg">
@@ -90,9 +102,14 @@ export default function EditQuizPage({ params }: EditQuizPageProps) {
           <CardDescription>Update the information for this quiz.</CardDescription>
         </CardHeader>
         <CardContent>
-          <QuizForm initialData={quiz} lectures={lecturesForSelect} lessons={lessonsForSelect} onSubmit={onSubmit} />
+          {quiz ? (
+            <QuizForm initialData={quiz} lectures={lecturesForSelect} lessons={lessonsForSelect} onSubmit={onSubmit} />
+          ) : (
+            <p>Loading form...</p>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
