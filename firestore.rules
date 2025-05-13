@@ -4,65 +4,71 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users collection:
-    // - Authenticated users can read their own user document.
-    // - Authenticated users can create their own user document (e.g., on sign up).
-    // - Authenticated users can update their own user document.
-    // - Admin users can read and write any user document (for potential future user management).
-    match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true; // Only admins can delete user docs
+    // Helper function to check if the authenticated user is an admin
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Lectures collection:
+    // User profiles
+    // - Authenticated users can read any profile (e.g., for display names).
+    // - A user can write to their own profile.
+    // - An admin can write to any user's profile.
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (
+                     request.auth.uid == userId || isAdmin()
+                   );
+    }
+
+    // Lectures
     // - Authenticated users can read lectures.
-    // - Only admin users can create, update, or delete lectures.
+    // - Only admins can create, update, or delete lectures.
     match /lectures/{lectureId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // Lessons collection:
+    // Lessons
     // - Authenticated users can read lessons.
-    // - Only admin users can create, update, or delete lessons.
+    // - Only admins can create, update, or delete lessons.
     match /lessons/{lessonId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // Quizzes collection:
+    // Quizzes
     // - Authenticated users can read quizzes.
-    // - Only admin users can create, update, or delete quizzes.
+    // - Only admins can create, update, or delete quizzes.
     match /quizzes/{quizId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // Activities collection:
-    // - Authenticated users can create activity logs (e.g., logging their own actions).
-    // - Only admin users can read all activity logs.
-    // - Updates and deletes are generally not allowed from the client for auditability.
+    // Activities
+    // - Authenticated users can create activity logs (e.g., when they complete a quiz).
+    // - Only admins can read or delete activity logs (e.g., for an admin dashboard).
     match /activities/{activityId} {
       allow create: if request.auth != null;
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      allow update, delete: if false; // Disallow client-side updates/deletes
+      allow read, delete: if isAdmin();
     }
 
-    // UserQuizCompletions collection:
-    // - Authenticated users can create their own quiz completion records.
-    // - Authenticated users can read their own quiz completion records.
-    // - Admin users can read all quiz completion records.
-    // - Updates and deletes are generally not allowed from the client.
+    // UserQuizCompletions
+    // - A user can create a completion record for themselves.
+    // - A user can read their own completion records.
+    // - Admins can read any completion records.
     match /userQuizCompletions/{completionId} {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read: if request.auth != null && 
-                      (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      allow update, delete: if false; // Disallow client-side updates/deletes
+      allow read: if request.auth != null && (
+                    request.auth.uid == resource.data.userId || isAdmin()
+                  );
+      // Update/delete for completions can be added if needed, likely admin-only or user-only for specific cases.
+      // allow update, delete: if isAdmin(); // Example if admins need to modify/delete
     }
 
-    // Default deny for any path not explicitly matched
+    // Default deny: Explicitly deny read/write to any path not covered above.
+    // This is a security best practice.
     match /{document=**} {
       allow read, write: if false;
     }
