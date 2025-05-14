@@ -204,7 +204,15 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
                         </FormControl>
                          {form.watch(`content.${index}.type`) === 'text' && (
                             <FormDescription>
-                                Markdown is supported, including tables, lists, bold, italics, etc. Single newlines will create line breaks.
+                                Markdown is supported: bold, italic, lists, etc. Single newlines create line breaks.
+                                <br />
+                                For tables, use Markdown syntax:
+                                <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
+{`| Header 1 | Header 2 |
+| -------- | -------- |
+| Cell 1   | Cell 2   |
+| Cell 3   | Cell 4   |`}
+                                </pre>
                             </FormDescription>
                         )}
                         <FormMessage />
