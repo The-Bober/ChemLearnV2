@@ -8,15 +8,14 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from "uuid";
 import { Trash2, PlusCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { addLesson, updateLesson } from "@/services/lessonService"; // Import services
-import type { useEffect, useState } from "react"; // For potential future state needs
+import { addLesson, updateLesson } from "@/services/lessonService"; 
 
 const lessonContentBlockSchema = z.object({
   id: z.string().default(() => uuidv4()),
@@ -33,13 +32,12 @@ const lessonSchema = z.object({
   content: z.array(lessonContentBlockSchema).min(1, "Lesson must have at least one content block."),
 });
 
-// Matches LessonFormDataType from types/index.ts
 export type LessonFormData = z.infer<typeof lessonSchema>;
 
 interface LessonFormProps {
-  initialData?: Lesson | null; // Lesson includes ID
+  initialData?: Lesson | null; 
   lectures: Pick<Lecture, 'id' | 'title'>[];
-  lessonId?: string; // For updates
+  lessonId?: string; 
 }
 
 export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps) {
@@ -181,7 +179,7 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="text">Text</SelectItem>
+                            <SelectItem value="text">Text (Markdown)</SelectItem>
                             <SelectItem value="image">Image URL</SelectItem>
                             <SelectItem value="video">Video URL (Embed)</SelectItem>
                             <SelectItem value="formula">Chemical Formula</SelectItem>
@@ -199,11 +197,16 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
                         <FormLabel>Value</FormLabel>
                         <FormControl>
                           {form.watch(`content.${index}.type`) === 'text' ? (
-                            <Textarea placeholder="Enter text content..." {...valueField} />
+                            <Textarea placeholder="Enter text content (Markdown supported)..." {...valueField} rows={8}/>
                           ) : (
                             <Input placeholder="Enter URL or formula..." {...valueField} />
                           )}
                         </FormControl>
+                         {form.watch(`content.${index}.type`) === 'text' && (
+                            <FormDescription>
+                                Markdown is supported, including tables, lists, bold, italics, etc. Single newlines will create line breaks.
+                            </FormDescription>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
