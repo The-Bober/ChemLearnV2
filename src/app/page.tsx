@@ -28,10 +28,10 @@ export default function HomePage() {
           <Image
             src="https://images.theconversation.com/files/553049/original/file-20231010-21-ljmz9o.jpg?ixlib=rb-4.1.0&rect=49%2C74%2C5450%2C3586&q=45&auto=format&w=926&fit=clip"
             alt="Abstract Chemistry"
-            layout="fill"
-            objectFit="cover"
-            className="rounded-full shadow-2xl"
-            data-ai-hint="chemistry flask"
+            fill
+            priority
+            className="rounded-full object-cover shadow-2xl"
+            data-ai-hint="abstract chemistry"
           />
            <div className="absolute inset-0 bg-primary/30 rounded-full mix-blend-multiply"></div>
         </div>

@@ -94,9 +94,11 @@ export function UserNav() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem disabled> {/* Placeholder */}
-            <User className="mr-2 h-4 w-4" />
-            <span>{t('userNav.profile')}</span>
+          <DropdownMenuItem asChild>
+            <Link href="/profile">
+              <User className="mr-2 h-4 w-4" />
+              <span>{t('userNav.profile')}</span>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem disabled> {/* Placeholder */}
             <CreditCard className="mr-2 h-4 w-4" />
