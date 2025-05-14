@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
         hostname: 'upload.wikimedia.org',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.hswstatic.com',
+        port: '',
+        pathname: '/**'
       }
       // If lecture.imageUrl points to other specific domains, they should be added here.
       // For example, if using Firebase Storage:
