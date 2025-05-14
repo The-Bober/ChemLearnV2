@@ -17,8 +17,9 @@ import {
   type WriteBatch,
   getCountFromServer,
 } from 'firebase/firestore';
-import type { Quiz, QuizFormData, Lecture, Lesson, UserQuizCompletion } from '@/types';
+import type { Quiz, QuizFormData, Lecture, Lesson, UserQuizCompletion, Question as QuestionType } from '@/types';
 import { logActivity } from './activityService'; // Import activity logger
+import { v4 as uuidv4 } from 'uuid';
 
 const quizzesCollection = collection(db, 'quizzes');
 const lecturesCollection = collection(db, 'lectures');
@@ -28,7 +29,12 @@ const userQuizCompletionsCollection = collection(db, 'userQuizCompletions');
 // Helper to convert Firestore data with Timestamps to serializable Quiz
 function toSerializableQuiz(docSnap: any): Quiz {
   const data = docSnap.data() as Omit<Quiz, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp };
-  const questions = data.questions.map(q => ({ ...q, options: q.options || [] }));
+  const questions = (data.questions || []).map((q: any) => ({ 
+    ...q, 
+    id: q.id || uuidv4(),
+    options: (q.options || []).map((opt: any) => ({id: opt.id || uuidv4(), text: opt.text || ""})),
+    explanation: q.explanation || ""
+  }));
   return {
     ...data,
     id: docSnap.id,
@@ -72,7 +78,7 @@ export interface EnrichedQuiz extends Omit<Quiz, 'questions' | 'createdAt' | 'up
   questionsCount: number;
   associatedTitle?: string;
   associatedType?: 'Lesson' | 'Lecture' | 'N/A';
-  associatedWithTitle?: string; // Added for consistency with quizzes-table
+  associatedWithTitle?: string; 
   createdAt?: string;
   updatedAt?: string;
 }
@@ -86,7 +92,7 @@ export async function getAllQuizzesEnriched(): Promise<EnrichedQuiz[]> {
   const lessonsCache: Record<string, string> = {};
 
   for (const docSnap of snapshot.docs) {
-    const data = toSerializableQuiz(docSnap); // Use helper for base quiz data
+    const data = toSerializableQuiz(docSnap); 
     let associatedTitle: string | undefined;
     let associatedType: 'Lesson' | 'Lecture' | 'N/A' = 'N/A';
 
@@ -121,7 +127,7 @@ export async function getAllQuizzesEnriched(): Promise<EnrichedQuiz[]> {
       ...rest,
       id: docSnap.id,
       questionsCount: questions.length,
-      associatedWithTitle: associatedTitle || 'Not Associated', // Ensure this is always set
+      associatedWithTitle: associatedTitle || 'Not Associated', 
       associatedTitle: associatedTitle,
       associatedType,
     });
@@ -129,43 +135,74 @@ export async function getAllQuizzesEnriched(): Promise<EnrichedQuiz[]> {
   return quizzes;
 }
 
-export async function addQuiz(data: QuizFormData): Promise<string> {
-  const quizDataToSave: Omit<Quiz, 'id' | 'createdAt' | 'updatedAt'> = { 
-    title: data.title,
-    description: data.description,
-    lessonId: data.associationType === "lesson" ? data.associatedId : undefined,
-    lectureId: data.associationType === "lecture" ? data.associatedId : undefined,
-    questions: data.questions.map(q => ({...q, options: q.options || []})),
-    durationMinutes: data.durationMinutes,
-  };
+const sanitizeQuestionsForFirestore = (questions: QuestionType[]): QuestionType[] => {
+  return questions.map(q => ({
+    id: q.id || uuidv4(),
+    text: q.text || "",
+    type: q.type,
+    options: (q.options || []).map(opt => ({
+      id: opt.id || uuidv4(),
+      text: opt.text || "",
+    })),
+    correctAnswer: q.correctAnswer || "",
+    explanation: q.explanation || "",
+  }));
+};
 
-  const docRef = await addDoc(quizzesCollection, {
-    ...quizDataToSave,
+export async function addQuiz(data: QuizFormData): Promise<string> {
+  const quizPayload: any = {
+    title: data.title,
+    questions: sanitizeQuestionsForFirestore(data.questions),
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
-  });
+  };
+
+  if (data.description) {
+    quizPayload.description = data.description;
+  }
+  if (data.associationType === "lesson" && data.associatedId) {
+    quizPayload.lessonId = data.associatedId;
+  } else if (data.associationType === "lecture" && data.associatedId) {
+    quizPayload.lectureId = data.associatedId;
+  }
+  if (typeof data.durationMinutes === 'number' && !isNaN(data.durationMinutes)) {
+    quizPayload.durationMinutes = data.durationMinutes;
+  }
+
+  const docRef = await addDoc(quizzesCollection, quizPayload);
   await logActivity('quiz_created', `Quiz "${data.title}" was created.`, docRef.id);
   return docRef.id;
 }
 
 export async function updateQuiz(id: string, data: QuizFormData): Promise<void> {
-  const quizDataToSave: Partial<Omit<Quiz, 'id' | 'createdAt' | 'updatedAt'>> = {
+  const updateData: {[key:string]: any} = {
     title: data.title,
-    description: data.description,
-    lessonId: data.associationType === "lesson" ? data.associatedId : undefined,
-    lectureId: data.associationType === "lecture" ? data.associatedId : undefined,
-    questions: data.questions.map(q => ({...q, options: q.options || []})),
-    durationMinutes: data.durationMinutes,
-  };
-  const docRef = doc(db, 'quizzes', id);
-  await updateDoc(docRef, {
-    ...quizDataToSave,
+    questions: sanitizeQuestionsForFirestore(data.questions),
     updatedAt: Timestamp.now(),
+  };
+
+  updateData.description = data.description || null; 
+  updateData.lessonId = (data.associationType === "lesson" && data.associatedId) ? data.associatedId : null;
+  updateData.lectureId = (data.associationType === "lecture" && data.associatedId) ? data.associatedId : null;
+  updateData.durationMinutes = (typeof data.durationMinutes === 'number' && !isNaN(data.durationMinutes)) ? data.durationMinutes : null;
+
+  // Remove any top-level keys that are explicitly undefined (should not happen with current QuizFormData)
+  // but good practice if the source data could have true undefined.
+  // For null values, Firestore will store them as null, effectively clearing the field.
+  Object.keys(updateData).forEach(key => {
+    if (updateData[key] === undefined) {
+      delete updateData[key]; // Should not be necessary if form data doesn't produce undefined
+    }
   });
+
+  const docRef = doc(db, 'quizzes', id);
+  await updateDoc(docRef, updateData);
+  
   const quizAfterUpdate = await getDoc(docRef);
   const title = data.title || (quizAfterUpdate.exists() ? (quizAfterUpdate.data() as Quiz).title : 'Unknown Quiz');
   await logActivity('quiz_updated', `Quiz "${title}" was updated.`, id);
 }
+
 
 export async function deleteQuiz(quizId: string, existingBatch?: WriteBatch): Promise<void> {
   const quizDoc = await getDoc(doc(db, 'quizzes', quizId));
@@ -177,7 +214,6 @@ export async function deleteQuiz(quizId: string, existingBatch?: WriteBatch): Pr
   if (!existingBatch) {
     await batch.commit();
   }
-  // Log only if not part of a larger batch operation.
   if (!existingBatch) {
      await logActivity('quiz_deleted', `Quiz "${title}" was deleted.`, quizId);
   }
@@ -188,7 +224,6 @@ export async function deleteQuizzesByLessonId(lessonId: string, existingBatch: W
   const quizzesSnapshot = await getDocs(quizzesQuery);
   quizzesSnapshot.forEach(quizDoc => {
     existingBatch.delete(quizDoc.ref);
-    // Individual quiz deletion logs are skipped here.
   });
 }
 
@@ -197,7 +232,6 @@ export async function deleteQuizzesByLectureId(lectureId: string, existingBatch:
   const quizzesSnapshot = await getDocs(quizzesQuery);
   quizzesSnapshot.forEach(quizDoc => {
     existingBatch.delete(quizDoc.ref);
-    // Individual quiz deletion logs are skipped here.
   });
 }
 
@@ -210,7 +244,7 @@ export async function getLessonsForSelect(): Promise<Pick<Lesson, 'id' | 'title'
       id: docSnap.id, 
       title: data.title as string,
       lectureId: data.lectureId as string,
-      content: data.content as Lesson['content'] // Assuming content is stored and needed
+      content: data.content as Lesson['content'] 
     };
   });
 }

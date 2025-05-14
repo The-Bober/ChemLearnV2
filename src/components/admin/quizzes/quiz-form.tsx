@@ -30,8 +30,8 @@ const questionSchema = z.object({
   text: z.string().min(5, "Question text must be at least 5 characters."),
   type: z.enum(["true_false", "multiple_choice"]),
   options: z.array(questionOptionSchema),
-  correctAnswer: z.string(), // Removed .min(1) here, superRefine will handle it
-  explanation: z.string().optional(),
+  correctAnswer: z.string(), // Validated in superRefine
+  explanation: z.string().optional().or(z.literal('')), // Allow empty string
 }).superRefine((data, ctx) => {
   if (data.type === "multiple_choice") {
     if (data.options.length < 2) {
@@ -43,21 +43,33 @@ const questionSchema = z.object({
         message: "Multiple choice questions require at least two options.",
         path: ["options"],
       });
-    }
-    // Only validate correctAnswer if there are enough options and text for each option
-    if (data.options.length >= 2 && data.options.every(opt => opt.text.trim() !== "")) {
-      if (!data.correctAnswer) { 
+    } else {
+      let allOptionsHaveText = true;
+      data.options.forEach((option, index) => {
+        if (option.text.trim() === "") {
+          allOptionsHaveText = false;
           ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "A correct answer must be selected from the options.",
-              path: ["correctAnswer"],
+            code: z.ZodIssueCode.custom,
+            message: "Option text cannot be empty.",
+            path: [`options`, index, "text"],
           });
-      } else if (!data.options.some(opt => opt.id === data.correctAnswer)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "The selected correct answer is not one of the provided options.",
-          path: ["correctAnswer"],
-        });
+        }
+      });
+
+      if (allOptionsHaveText) { // Only validate correctAnswer if options themselves are valid
+        if (!data.correctAnswer || data.correctAnswer.trim() === "") {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "A correct answer must be selected.",
+                path: ["correctAnswer"],
+            });
+        } else if (!data.options.some(opt => opt.id === data.correctAnswer)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "The selected correct answer is not a valid option ID. Please re-select.",
+            path: ["correctAnswer"],
+          });
+        }
       }
     }
   } else if (data.type === "true_false") {
@@ -103,7 +115,7 @@ const createDefaultQuestion = (): Question => {
       { id: uuidv4(), text: "" }
     ],
     correctAnswer: defaultFirstOptionId,
-    explanation: "",
+    explanation: "", // Default to empty string
   };
 };
 
@@ -138,8 +150,8 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
                 }
                 if (!mappedOptions.some(opt => opt.id === mappedCorrectAnswer) && mappedOptions.length > 0) {
                     mappedCorrectAnswer = mappedOptions[0].id; 
-                } else if (mappedOptions.length === 0) {
-                     mappedCorrectAnswer = ""; // Will be caught by options validation
+                } else if (mappedOptions.length === 0) { // Should not happen if logic above is correct
+                     mappedCorrectAnswer = ""; 
                 }
             } else if (q.type === "true_false") {
                 if (mappedCorrectAnswer !== "true" && mappedCorrectAnswer !== "false") {
@@ -153,7 +165,7 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
               type: q.type,
               options: mappedOptions,
               correctAnswer: mappedCorrectAnswer,
-              explanation: q.explanation || "",
+              explanation: q.explanation || "", // Ensure explanation is empty string if not present
             };
           })
         : [createDefaultQuestion()],
@@ -398,3 +410,4 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
     </FormProvider>
   );
 }
+
