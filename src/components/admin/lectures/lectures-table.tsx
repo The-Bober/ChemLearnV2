@@ -84,20 +84,14 @@ export function LecturesTable({ initialLectures }: LecturesTableProps) {
           {lectures.map((lecture) => (
             <TableRow key={lecture.id}>
               <TableCell className="hidden sm:table-cell">
-                {lecture.imageUrl ? (
-                  <Image
-                    alt={lecture.title}
-                    className="aspect-square rounded-md object-cover"
-                    height="64"
-                    src={lecture.imageUrl}
-                    width="64"
-                    data-ai-hint={lecture.title.toLowerCase().split(" ").slice(0,2).join(" ") || "lecture image"}
-                  />
-                ) : (
-                  <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
-                    No Image
-                  </div>
-                )}
+                <Image
+                  alt={lecture.title}
+                  className="aspect-square rounded-md object-cover"
+                  height="64"
+                  src={lecture.imageUrl || 'https://placehold.co/64x64.png'}
+                  width="64"
+                  data-ai-hint={lecture.title.toLowerCase().split(" ").slice(0,2).join(" ") || "lecture image"}
+                />
               </TableCell>
               <TableCell className="font-medium">{lecture.title}</TableCell>
               <TableCell className="max-w-xs truncate">{lecture.description}</TableCell>

@@ -9,6 +9,7 @@ import type { Lecture } from "@/types";
 
 export default async function LearnPage() {
   const lectures: Lecture[] = await getAllLectures();
+  const featuredLectures = lectures.slice(0, 3); // Take first 3 for featured section
 
   return (
     <div className="space-y-8">
@@ -21,13 +22,13 @@ export default async function LearnPage() {
 
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold">Featured Lectures</h2>
-        {lectures.length > 0 ? (
+        {featuredLectures.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {lectures.map((lecture) => (
+            {featuredLectures.map((lecture) => (
               <Card key={lecture.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <CardHeader className="p-0">
                   <Image 
-                    src={lecture.imageUrl || `https://picsum.photos/600/400?random=${lecture.id}`} 
+                    src={lecture.imageUrl || `https://placehold.co/600x400.png`} 
                     alt={lecture.title}
                     width={600}
                     height={400}

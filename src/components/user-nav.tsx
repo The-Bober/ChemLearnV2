@@ -56,7 +56,7 @@ export function UserNav() {
 
   const userName = user.displayName || user.email?.split('@')[0] || "User";
   const userEmail = user.email || "No email provided";
-  const userImage = user.photoURL || `https://picsum.photos/100/100?random=${user.uid}`;
+  const userImage = user.photoURL || `https://placehold.co/100x100.png`;
 
 
   return (

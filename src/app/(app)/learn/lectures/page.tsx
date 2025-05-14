@@ -25,7 +25,7 @@ export default async function AllLecturesPage() {
             <Card key={lecture.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
               <CardHeader className="p-0">
                 <Image 
-                  src={lecture.imageUrl || `https://picsum.photos/600/400?random=${lecture.id}`} 
+                  src={lecture.imageUrl || `https://placehold.co/600x400.png`} 
                   alt={lecture.title}
                   width={600}
                   height={400}

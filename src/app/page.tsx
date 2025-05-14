@@ -21,7 +21,7 @@ export default function HomePage() {
       <main className="text-center flex flex-col items-center space-y-8">
         <div className="relative w-48 h-48 md:w-64 md:h-64">
           <Image
-            src="https://picsum.photos/512/512?random=1"
+            src="https://placehold.co/512x512.png"
             alt="Abstract Chemistry"
             layout="fill"
             objectFit="cover"
@@ -48,9 +48,7 @@ export default function HomePage() {
               <Button asChild size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-primary/50 transition-shadow">
                 <Link href="/learn">Start Learning Now</Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                <Link href="/admin">Admin Panel</Link>
-              </Button>
+              {/* Admin Panel button only shown if user is admin - Handled by UserNav or specific admin links */}
             </>
           ) : (
             <>

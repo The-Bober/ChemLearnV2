@@ -12,10 +12,18 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'picsum.photos',
+        hostname: 'placehold.co',
         port: '',
         pathname: '/**',
       },
+      // If lecture.imageUrl points to other specific domains, they should be added here.
+      // For example, if using Firebase Storage:
+      // {
+      //   protocol: 'https',
+      //   hostname: 'firebasestorage.googleapis.com',
+      //   port: '',
+      //   pathname: '/**',
+      // },
     ],
   },
 };
