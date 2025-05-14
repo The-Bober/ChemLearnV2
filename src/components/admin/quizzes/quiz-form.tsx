@@ -29,8 +29,8 @@ const questionSchema = z.object({
   id: z.string().default(() => uuidv4()),
   text: z.string().min(5, "Question text must be at least 5 characters."),
   type: z.enum(["true_false", "multiple_choice"]),
-  options: z.array(questionOptionSchema),
-  correctAnswer: z.string(), // Validated in superRefine
+  options: z.array(questionOptionSchema), // For multiple_choice, validated by superRefine
+  correctAnswer: z.string(), // For true_false: "true" or "false". For MC: id of the correct QuestionOption. Validated by superRefine
   explanation: z.string().optional().or(z.literal('')), // Allow empty string
 }).superRefine((data, ctx) => {
   if (data.type === "multiple_choice") {
@@ -43,35 +43,37 @@ const questionSchema = z.object({
         message: "Multiple choice questions require at least two options.",
         path: ["options"],
       });
-    } else {
-      let allOptionsHaveText = true;
-      data.options.forEach((option, index) => {
-        if (option.text.trim() === "") {
-          allOptionsHaveText = false;
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Option text cannot be empty.",
-            path: [`options`, index, "text"],
-          });
-        }
-      });
-
-      if (allOptionsHaveText) { // Only validate correctAnswer if options themselves are valid
-        if (!data.correctAnswer || data.correctAnswer.trim() === "") {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "A correct answer must be selected.",
-                path: ["correctAnswer"],
-            });
-        } else if (!data.options.some(opt => opt.id === data.correctAnswer)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "The selected correct answer is not a valid option ID. Please re-select.",
-            path: ["correctAnswer"],
-          });
-        }
-      }
+      // If not enough options, don't bother checking correctAnswer yet
+      return;
     }
+    
+    let allOptionsHaveText = true;
+    data.options.forEach((option, index) => {
+      if (option.text.trim() === "") {
+        allOptionsHaveText = false;
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Option text cannot be empty.",
+          path: [`options`, index, "text"],
+        });
+      }
+    });
+
+    if (!allOptionsHaveText) {
+      // If options text is invalid, don't bother checking correctAnswer
+      return;
+    }
+
+    // Only check if correctAnswer is empty. Removed the check for valid option ID.
+    if (!data.correctAnswer || data.correctAnswer.trim() === "") {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "A correct answer must be selected.",
+            path: ["correctAnswer"],
+        });
+    }
+    // The check 'else if (!data.options.some(opt => opt.id === data.correctAnswer))' has been removed.
+
   } else if (data.type === "true_false") {
     if (data.correctAnswer !== "true" && data.correctAnswer !== "false") {
       ctx.addIssue({
@@ -87,7 +89,7 @@ const questionSchema = z.object({
 // This is for form validation
 const quizFormValidationSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
-  description: z.string().optional(),
+  description: z.string().optional().or(z.literal('')),
   associationType: z.enum(["lesson", "lecture", "none"]).default("none"),
   associatedId: z.string().optional(),
   questions: z.array(questionSchema).min(1, "A quiz must have at least one question."),
@@ -114,8 +116,8 @@ const createDefaultQuestion = (): Question => {
       { id: defaultFirstOptionId, text: "" },
       { id: uuidv4(), text: "" }
     ],
-    correctAnswer: defaultFirstOptionId,
-    explanation: "", // Default to empty string
+    correctAnswer: defaultFirstOptionId, // Default to first option's ID
+    explanation: "",
   };
 };
 
@@ -137,30 +139,30 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
         ? initialData.questions.map(q => {
             let mappedCorrectAnswer = q.correctAnswer;
             let mappedOptions = (q.options || []).map(opt => ({
-                id: opt.id || uuidv4(),
+                id: opt.id || uuidv4(), // Ensure option has an ID
                 text: opt.text || ""
             }));
 
             if (q.type === "multiple_choice") {
-                if (mappedOptions.length < 2) {
-                    const additionalOptionsNeeded = 2 - mappedOptions.length;
-                    for (let i = 0; i < additionalOptionsNeeded; i++) {
-                        mappedOptions.push({ id: uuidv4(), text: "" });
-                    }
+                // Ensure at least two options for multiple choice
+                while (mappedOptions.length < 2) {
+                    mappedOptions.push({ id: uuidv4(), text: "" });
                 }
+                // If correctAnswer isn't among option IDs, or if it's empty, default to first option's ID
                 if (!mappedOptions.some(opt => opt.id === mappedCorrectAnswer) && mappedOptions.length > 0) {
                     mappedCorrectAnswer = mappedOptions[0].id; 
-                } else if (mappedOptions.length === 0) { // Should not happen if logic above is correct
-                     mappedCorrectAnswer = ""; 
+                } else if (mappedOptions.length === 0) {
+                     mappedCorrectAnswer = ""; // Should not happen if logic above is correct
                 }
             } else if (q.type === "true_false") {
+                // Ensure correctAnswer is 'true' or 'false' for true/false questions
                 if (mappedCorrectAnswer !== "true" && mappedCorrectAnswer !== "false") {
-                    mappedCorrectAnswer = "true"; 
+                    mappedCorrectAnswer = "true"; // Default to true
                 }
             }
             
             return {
-              id: q.id || uuidv4(),
+              id: q.id || uuidv4(), // Ensure question has an ID
               text: q.text || "",
               type: q.type,
               options: mappedOptions,
@@ -237,14 +239,15 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
         const output = await generateQuizQuestions(input);
         
         const newAIQuestions: Question[] = output.questions.map(aiQ => {
-            const options: {id: string, text: string}[] = aiQ.options.map(optText => ({id: uuidv4(), text: optText }));
-            const correctOption = options.find(opt => opt.text === aiQ.correctAnswer);
+            const optionsWithIds: {id: string, text: string}[] = aiQ.options.map(optText => ({id: uuidv4(), text: optText }));
+            const correctOption = optionsWithIds.find(opt => opt.text === aiQ.correctAnswer);
+            
             return {
                 id: uuidv4(),
                 text: aiQ.question,
-                type: "multiple_choice",
-                options: options,
-                correctAnswer: correctOption ? correctOption.id : (options.length > 0 ? options[0].id : ""),
+                type: "multiple_choice", // AI generally produces MCQs
+                options: optionsWithIds,
+                correctAnswer: correctOption ? correctOption.id : (optionsWithIds.length > 0 ? optionsWithIds[0].id : ""), // Fallback to first option's ID
                 explanation: `AI Generated: Correct answer is ${aiQ.correctAnswer}`,
             };
         });
@@ -302,10 +305,15 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
                     type="number" 
                     placeholder="10" 
                     {...field} 
-                    value={field.value ?? ''}
-                    onChange={e => {
-                      const num = parseInt(e.target.value, 10);
-                      field.onChange(isNaN(num) ? undefined : num);
+                    value={field.value ?? ''} // Ensure value is controlled
+                    onChange={e => { // Handle parsing and setting undefined if empty
+                      const stringValue = e.target.value;
+                      if (stringValue === '') {
+                        field.onChange(undefined);
+                      } else {
+                        const num = parseInt(stringValue, 10);
+                        field.onChange(isNaN(num) ? undefined : num);
+                      }
                     }}
                   />
                 </FormControl>
@@ -389,8 +397,8 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
             >
               <PlusCircle className="h-4 w-4 mr-1" /> Add Question
             </Button>
-             {errors.questions && typeof errors.questions === 'object' && !Array.isArray(errors.questions) && errors.questions.message && (
-                <p className="text-sm font-medium text-destructive mt-2">{errors.questions.message}</p>
+             {errors.questions && typeof errors.questions === 'object' && !Array.isArray(errors.questions) && (errors.questions as any).message && (
+                <p className="text-sm font-medium text-destructive mt-2">{(errors.questions as any).message}</p>
             )}
             {errors.questions && Array.isArray(errors.questions) && errors.questions.length > 0 && (
                  <p className="text-sm font-medium text-destructive mt-2">One or more questions have errors. Please review them.</p>
