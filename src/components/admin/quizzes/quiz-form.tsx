@@ -30,22 +30,44 @@ const questionSchema = z.object({
   text: z.string().min(5, "Question text must be at least 5 characters."),
   type: z.enum(["true_false", "multiple_choice"]),
   options: z.array(questionOptionSchema),
-  correctAnswer: z.string().min(1, "A correct answer must be selected/provided."),
+  correctAnswer: z.string().min(1, "A correct answer must be selected or provided."),
   explanation: z.string().optional(),
-}).refine(data => {
-    if (data.type === "multiple_choice") {
-        if (data.options.length < 2) return false; 
-        if (!data.correctAnswer) return false; 
-        return data.options.some(opt => opt.id === data.correctAnswer); 
+}).superRefine((data, ctx) => {
+  if (data.type === "multiple_choice") {
+    if (data.options.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 2,
+        type: "array",
+        inclusive: true,
+        message: "Multiple choice questions require at least two options.",
+        path: ["options"], 
+      });
     }
-    return true;
-}, {
-    message: "For multiple choice: select a correct answer from at least two options. All option texts must be filled.",
-    path: ["correctAnswer"], 
+    // Individual option text emptiness is handled by questionOptionSchema
+
+    if (!data.correctAnswer && data.options.length >=2) { 
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "A correct answer must be selected from the options.",
+            path: ["correctAnswer"],
+        });
+    } else if (data.options.length > 0 && !data.options.some(opt => opt.id === data.correctAnswer)) {
+      // This checks if correctAnswer is a valid ID from the current options.
+      // Only trigger if options array isn't empty and correctAnswer isn't among them.
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The selected correct answer is not one of the provided options.",
+        path: ["correctAnswer"], 
+      });
+    }
+  }
+  // For true_false, correctAnswer is validated by z.string().min(1)
+  // and should be "true" or "false" based on QuestionForm logic.
 });
 
 
-// This schema is for form validation
+// This is for form validation
 const quizFormValidationSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().optional(),
@@ -95,15 +117,35 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
       associationType: defaultAssociationType,
       associatedId: defaultAssociatedId,
       questions: initialData?.questions && initialData.questions.length > 0 
-        ? initialData.questions.map(q => ({
-            id: q.id || uuidv4(),
-            text: q.text || "",
-            type: q.type,
-            // Ensure options always have IDs and text is initialized
-            options: q.options ? q.options.map(opt => ({ id: opt.id || uuidv4(), text: opt.text || "" })) : [],
-            correctAnswer: q.correctAnswer || (q.type === "true_false" ? "true" : (q.options && q.options.length > 0 ? q.options[0].id : "")),
-            explanation: q.explanation || "",
-          }))
+        ? initialData.questions.map(q => {
+            let mappedOptions = q.options ? q.options.map(opt => ({ id: opt.id || uuidv4(), text: opt.text || "" })) : [];
+            let mappedCorrectAnswer = q.correctAnswer;
+
+            if (q.type === "multiple_choice") {
+              if (mappedOptions.length < 2) {
+                const additionalOptionsNeeded = 2 - mappedOptions.length;
+                for (let i = 0; i < additionalOptionsNeeded; i++) {
+                  mappedOptions.push({ id: uuidv4(), text: "" });
+                }
+              }
+              if (!mappedOptions.some(opt => opt.id === mappedCorrectAnswer)) {
+                mappedCorrectAnswer = mappedOptions.length > 0 ? mappedOptions[0].id : ""; 
+              }
+            } else if (q.type === "true_false") {
+              if (mappedCorrectAnswer !== "true" && mappedCorrectAnswer !== "false") {
+                mappedCorrectAnswer = "true"; 
+              }
+            }
+            
+            return {
+              id: q.id || uuidv4(),
+              text: q.text || "",
+              type: q.type,
+              options: mappedOptions,
+              correctAnswer: mappedCorrectAnswer || (q.type === "true_false" ? "true" : ""),
+              explanation: q.explanation || "",
+            };
+          })
         : [createDefaultQuestion()],
       durationMinutes: initialData?.durationMinutes || undefined,
     },
@@ -347,5 +389,7 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
   );
 }
 
+
+    
 
     
