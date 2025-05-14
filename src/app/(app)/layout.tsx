@@ -17,10 +17,10 @@ import {
 import { MainNav } from "@/components/main-nav";
 import { UserNav } from "@/components/user-nav";
 import { ModeToggle } from "@/components/mode-toggle";
+import { LanguageSwitcher } from "@/components/language-switcher"; // Added
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { Home, LogOut, Settings } from "lucide-react";
-import Link from "next/link";
+import { LogOut } from "lucide-react"; // Removed Home, Settings
 import { useAuth } from "@/contexts/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -34,7 +34,6 @@ export default function AppLayout({ children }: PropsWithChildren) {
   }, [user, loading]);
 
   if (loading || (!loading && !user)) {
-    // Basic loading state, can be replaced with a more sophisticated skeleton UI
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -55,13 +54,11 @@ export default function AppLayout({ children }: PropsWithChildren) {
   );
 }
 
-// Sidebar, Header, and Navigation component
 function SidebarHSN({ children }: PropsWithChildren) {
   const { signOut, loading: authLoading } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
-    // No need to redirect here, the layout's useEffect will handle it
   };
 
   return (
@@ -91,6 +88,7 @@ function SidebarHSN({ children }: PropsWithChildren) {
           <div className="flex items-center gap-2">
             <UserNav />
             <ModeToggle />
+            <LanguageSwitcher /> {/* Added LanguageSwitcher */}
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:p-6">

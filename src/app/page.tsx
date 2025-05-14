@@ -6,16 +6,21 @@ import { Logo } from "@/components/logo";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/language-context"; // Added
 import { Skeleton } from "@/components/ui/skeleton";
+import { LanguageSwitcher } from "@/components/language-switcher"; // Added
 
 export default function HomePage() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage(); // Added
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4">
       <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
         <Logo iconSize={32} textSize="text-2xl" />
-        {/* Login/Signup buttons are now part of UserNav or main content based on auth state */}
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher /> {/* Added LanguageSwitcher to public page header as well */}
+        </div>
       </header>
 
       <main className="text-center flex flex-col items-center space-y-8">
@@ -32,10 +37,10 @@ export default function HomePage() {
         </div>
         
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-foreground">
-          Welcome to <span className="text-primary">ChemLearn</span>
+          {t('welcome.title')}
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-          Unlock the fascinating world of chemistry with engaging lessons, interactive quizzes, and a personalized learning experience.
+          {t('welcome.description')}
         </p>
         <div className="space-y-4 sm:space-y-0 sm:flex sm:gap-4">
           {loading ? (
@@ -46,17 +51,16 @@ export default function HomePage() {
           ) : user ? (
             <>
               <Button asChild size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-primary/50 transition-shadow">
-                <Link href="/learn">Start Learning Now</Link>
+                <Link href="/learn">{t('startLearning.button')}</Link>
               </Button>
-              {/* Admin Panel button only shown if user is admin - Handled by UserNav or specific admin links */}
             </>
           ) : (
             <>
               <Button asChild size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-primary/50 transition-shadow">
-                <Link href="/login">Login to Learn</Link>
+                <Link href="/login">{t('login.button')}</Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                <Link href="/signup">Sign Up</Link>
+                <Link href="/signup">{t('signup.button')}</Link>
               </Button>
             </>
           )}

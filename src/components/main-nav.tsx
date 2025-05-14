@@ -3,24 +3,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CheckSquare, LayoutDashboard, FlaskConical, Atom, TestTube, Settings, HelpCircle } from "lucide-react"; 
+import { LayoutDashboard, FlaskConical, Settings, HelpCircle, Atom } from "lucide-react"; 
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/language-context"; // Added
 
 const baseNavLinks = [
-  { href: "/learn", label: "Learn Dashboard", icon: FlaskConical }, // Main learn page showing featured content
-  { href: "/learn/lectures", label: "All Lectures", icon: LayoutDashboard }, // New page listing all lectures
-  // { href: "/learn/elements", label: "Elements", icon: Atom, isSubItem: true }, // Future feature
-  // { href: "/learn/lab", label: "Lab Safety", icon: TestTube, isSubItem: true }, // Future feature
-  { href: "/quizzes", label: "Quizzes", icon: HelpCircle }, 
+  { href: "/learn", labelKey: "nav.learnDashboard", icon: FlaskConical },
+  { href: "/learn/lectures", labelKey: "nav.allLectures", icon: LayoutDashboard },
+  { href: "/quizzes", labelKey: "nav.quizzes", icon: HelpCircle }, 
 ];
 
-const adminNavLink = { href: "/admin", label: "Admin Panel", icon: Settings, isExternal: false };
+const adminNavLink = { href: "/admin", labelKey: "nav.adminPanel", icon: Settings, isExternal: false };
 
 export function MainNav() {
   const pathname = usePathname();
   const { user, isAdmin, loading } = useAuth();
+  const { t } = useLanguage(); // Added
 
   const navLinks = [...baseNavLinks];
   if (user && isAdmin) {
@@ -42,19 +42,18 @@ export function MainNav() {
     );
   }
 
-
   return (
     <>
-      {navLinks.map(({ href, label, icon: Icon, isSubItem, isExternal }) => {
-        const isActive = pathname === href || (href !== "/learn" && href !== "/quizzes" && !isSubItem && pathname.startsWith(href));
+      {navLinks.map(({ href, labelKey, icon: Icon, isExternal }) => {
+        const isActive = pathname === href || (href !== "/learn" && href !== "/quizzes" && pathname.startsWith(href));
         const Comp = isExternal ? "a" : Link;
+        const label = t(labelKey);
         
         return (
           <SidebarMenuItem key={href}>
             <SidebarMenuButton
               asChild
               isActive={isActive}
-              className={cn(isSubItem && "ml-4")} // Keep subItem styling if needed for future hierarchy
               tooltip={{children: label, className: "bg-primary text-primary-foreground"}}
             >
               <Comp href={href} target={isExternal ? "_blank" : undefined}>

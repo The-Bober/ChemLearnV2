@@ -17,6 +17,7 @@ import {
 import { AdminNav } from "@/components/admin/admin-nav";
 import { UserNav } from "@/components/user-nav";
 import { ModeToggle } from "@/components/mode-toggle";
+import { LanguageSwitcher } from "@/components/language-switcher"; // Added
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { LogOut, Home } from "lucide-react";
@@ -32,13 +33,12 @@ export default function AdminLayout({ children }: PropsWithChildren) {
       if (!user) {
         redirect('/login?redirect=/admin');
       } else if (!isAdmin) {
-        redirect('/learn'); // Or a dedicated "unauthorized" page
+        redirect('/learn'); 
       }
     }
   }, [user, isAdmin, loading]);
 
   if (loading || (!loading && (!user || !isAdmin))) {
-    // Basic loading state
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -64,7 +64,6 @@ function AdminSidebarHSN({ children }: PropsWithChildren) {
 
   const handleLogout = async () => {
     await signOut();
-    // No need to redirect here, the layout's useEffect will handle it
   };
 
   return (
@@ -100,6 +99,7 @@ function AdminSidebarHSN({ children }: PropsWithChildren) {
           <div className="flex items-center gap-2">
             <UserNav />
             <ModeToggle />
+            <LanguageSwitcher /> {/* Added LanguageSwitcher */}
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:p-6">
