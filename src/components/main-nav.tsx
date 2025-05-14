@@ -3,15 +3,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FlaskConical, Settings, HelpCircle, Atom } from "lucide-react"; 
+import { LayoutDashboard, Home, Settings, HelpCircle, Atom, BookOpenText } from "lucide-react"; // Added Home, BookOpenText
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
-import { useLanguage } from "@/contexts/language-context"; // Added
+import { useLanguage } from "@/contexts/language-context"; 
 
 const baseNavLinks = [
-  { href: "/learn", labelKey: "nav.learnDashboard", icon: FlaskConical },
-  { href: "/learn/lectures", labelKey: "nav.allLectures", icon: LayoutDashboard },
+  { href: "/learn", labelKey: "nav.learnDashboard", icon: Home }, // Changed icon to Home
+  { href: "/learn/lectures", labelKey: "nav.allLectures", icon: BookOpenText }, // Changed icon for clarity
   { href: "/quizzes", labelKey: "nav.quizzes", icon: HelpCircle }, 
 ];
 
@@ -20,7 +20,7 @@ const adminNavLink = { href: "/admin", labelKey: "nav.adminPanel", icon: Setting
 export function MainNav() {
   const pathname = usePathname();
   const { user, isAdmin, loading } = useAuth();
-  const { t } = useLanguage(); // Added
+  const { t } = useLanguage(); 
 
   const navLinks = [...baseNavLinks];
   if (user && isAdmin) {

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SearchBar } from "@/components/search-bar"; // Import SearchBar
 
 export default function AppLayout({ children }: PropsWithChildren) {
   const { user, loading } = useAuth();
@@ -82,8 +83,8 @@ function SidebarHSN({ children }: PropsWithChildren) {
       <div className="flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6">
           <SidebarTrigger className="md:hidden" />
-          <div className="flex-1">
-            {/* Optional: Breadcrumbs or page title can go here */}
+          <div className="flex-1 flex items-center justify-start md:justify-center"> {/* Adjusted for search bar placement */}
+             <SearchBar />
           </div>
           <div className="flex items-center gap-2">
             <UserNav />
@@ -98,4 +99,3 @@ function SidebarHSN({ children }: PropsWithChildren) {
     </>
   );
 }
-
