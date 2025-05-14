@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -16,6 +17,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.theconversation.com',
+        port: '',
+        pathname: '/**',
+      }
       // If lecture.imageUrl points to other specific domains, they should be added here.
       // For example, if using Firebase Storage:
       // {

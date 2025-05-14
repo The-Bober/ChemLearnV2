@@ -21,12 +21,12 @@ export default function HomePage() {
       <main className="text-center flex flex-col items-center space-y-8">
         <div className="relative w-48 h-48 md:w-64 md:h-64">
           <Image
-            src="https://placehold.co/512x512.png"
+            src="https://images.theconversation.com/files/553049/original/file-20231010-21-ljmz9o.jpg?ixlib=rb-4.1.0&rect=49%2C74%2C5450%2C3586&q=45&auto=format&w=926&fit=clip"
             alt="Abstract Chemistry"
             layout="fill"
             objectFit="cover"
             className="rounded-full shadow-2xl"
-            data-ai-hint="chemistry lab"
+            data-ai-hint="chemistry flask"
           />
            <div className="absolute inset-0 bg-primary/30 rounded-full mix-blend-multiply"></div>
         </div>
