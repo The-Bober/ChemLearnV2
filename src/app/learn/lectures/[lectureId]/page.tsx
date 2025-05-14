@@ -2,7 +2,7 @@
 import { getLectureById } from "@/services/lectureService";
 import { getLessonsByLectureId } from "@/services/lessonService";
 import type { Lecture, Lesson } from "@/types";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
@@ -34,28 +34,31 @@ export default async function LecturePage({ params }: LecturePageProps) {
 
   return (
     <div className="space-y-8">
-      <Card className="overflow-hidden shadow-lg">
-        <div className="relative h-64 w-full bg-muted">
+      {/* New Lecture Header Layout */}
+      <div className="flex flex-col md:flex-row items-start gap-6 p-4 md:p-6 rounded-lg border bg-card shadow-sm">
+        {/* Left: Title & Description */}
+        <div className="flex-1 space-y-3">
+          <h1 className="text-3xl lg:text-4xl font-bold text-primary">{lecture.title}</h1>
+          <p className="text-md lg:text-lg text-muted-foreground">
+            {lecture.description}
+          </p>
+        </div>
+        {/* Right: Small Square Image */}
+        <div className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 relative overflow-hidden rounded-md shadow-md flex-shrink-0 self-center md:self-start">
           <Image
-            src={lecture.imageUrl || 'https://placehold.co/600x400.png'}
+            src={lecture.imageUrl || `https://placehold.co/200x200.png`}
             alt={lecture.title}
             fill
             className="object-cover"
             data-ai-hint={lecture.title.toLowerCase().split(" ").slice(0,2).join(" ") || "lecture topic"}
+            sizes="(max-width: 768px) 128px, (max-width: 1024px) 160px, 192px"
           />
-           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
         </div>
-        <CardHeader className="relative text-primary-foreground pt-40 p-6">
-          <CardTitle className="text-4xl font-bold">{lecture.title}</CardTitle>
-          <CardDescription className="text-primary-foreground/90 text-lg">
-            {lecture.description}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      </div>
 
-      <section className="space-y-6">
-        <h2 className="text-3xl font-semibold text-primary flex items-center">
-          <ListChecks className="mr-3 h-8 w-8" />
+      <section className="space-y-6 px-2 sm:px-4 md:px-6">
+        <h2 className="text-2xl md:text-3xl font-semibold text-primary flex items-center">
+          <ListChecks className="mr-3 h-7 w-7 md:h-8 md:w-8" />
           Lessons in this Lecture
         </h2>
         {lessons.length > 0 ? (
@@ -63,7 +66,7 @@ export default async function LecturePage({ params }: LecturePageProps) {
             {lessons.map((lesson, index) => (
               <Card key={lesson.id} className="hover:shadow-xl transition-shadow duration-300 flex flex-col">
                 <CardHeader>
-                  <CardTitle className="text-2xl">{lesson.title}</CardTitle>
+                  <CardTitle className="text-xl md:text-2xl">{lesson.title}</CardTitle>
                   <div className="flex items-center text-sm text-muted-foreground space-x-4 pt-1">
                      <Badge variant="outline">Lesson {index + 1}</Badge>
                     {lesson.estimatedTimeMinutes && (
