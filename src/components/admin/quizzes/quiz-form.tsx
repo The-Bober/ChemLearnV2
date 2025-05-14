@@ -27,19 +27,21 @@ const questionOptionSchema = z.object({
 
 const questionSchema = z.object({
   id: z.string().default(() => uuidv4()),
-  text: z.string().min(5, "Question text must be at least 5 characters"),
+  text: z.string().min(5, "Question text must be at least 5 characters."),
   type: z.enum(["true_false", "multiple_choice"]),
-  options: z.array(questionOptionSchema), // Keep options array here for Zod validation
-  correctAnswer: z.string().min(1, "A correct answer must be selected/provided"),
+  options: z.array(questionOptionSchema),
+  correctAnswer: z.string().min(1, "A correct answer must be selected/provided."),
   explanation: z.string().optional(),
 }).refine(data => {
     if (data.type === "multiple_choice") {
-        return data.options.length >= 2 && data.options.some(opt => opt.id === data.correctAnswer);
+        if (data.options.length < 2) return false; 
+        if (!data.correctAnswer) return false; 
+        return data.options.some(opt => opt.id === data.correctAnswer); 
     }
     return true;
 }, {
-    message: "Multiple choice questions must have at least 2 options and a selected correct answer.",
-    path: ["options"], // Check options path
+    message: "For multiple choice: select a correct answer from at least two options. All option texts must be filled.",
+    path: ["correctAnswer"], 
 });
 
 
@@ -63,6 +65,21 @@ interface QuizFormProps {
   quizId?: string; // For updates
 }
 
+const createDefaultQuestion = (): Question => {
+  const defaultFirstOptionId = uuidv4();
+  return {
+    id: uuidv4(),
+    text: "",
+    type: "multiple_choice",
+    options: [
+      { id: defaultFirstOptionId, text: "" },
+      { id: uuidv4(), text: "" }
+    ],
+    correctAnswer: defaultFirstOptionId,
+    explanation: "",
+  };
+};
+
 export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -70,7 +87,7 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
   const defaultAssociationType = initialData?.lessonId ? "lesson" : initialData?.lectureId ? "lecture" : "none";
   const defaultAssociatedId = initialData?.lessonId || initialData?.lectureId || undefined;
 
-  const methods = useForm<QuizFormData>({ // Use QuizFormData for validation
+  const methods = useForm<QuizFormData>({ 
     resolver: zodResolver(quizFormValidationSchema),
     defaultValues: {
       title: initialData?.title || "",
@@ -78,8 +95,16 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
       associationType: defaultAssociationType,
       associatedId: defaultAssociatedId,
       questions: initialData?.questions && initialData.questions.length > 0 
-        ? initialData.questions.map(q => ({...q, options: q.options || []}))
-        : [{ id: uuidv4(), text: "", type: "multiple_choice", options: [{id: uuidv4(), text:""}, {id:uuidv4(), text:""}], correctAnswer: "" }],
+        ? initialData.questions.map(q => ({
+            id: q.id || uuidv4(),
+            text: q.text || "",
+            type: q.type,
+            // Ensure options always have IDs and text is initialized
+            options: q.options ? q.options.map(opt => ({ id: opt.id || uuidv4(), text: opt.text || "" })) : [],
+            correctAnswer: q.correctAnswer || (q.type === "true_false" ? "true" : (q.options && q.options.length > 0 ? q.options[0].id : "")),
+            explanation: q.explanation || "",
+          }))
+        : [createDefaultQuestion()],
       durationMinutes: initialData?.durationMinutes || undefined,
     },
   });
@@ -103,7 +128,7 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
           description: `Quiz "${data.title}" has been successfully updated.`,
         });
       } else { // Creating
-        await addQuiz(data); // addQuiz now accepts QuizFormData
+        await addQuiz(data); 
         toast({
           title: "Quiz Created",
           description: `Quiz "${data.title}" has been successfully created.`,
@@ -196,7 +221,7 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
               <FormItem>
                 <FormLabel>Description (Optional)</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="A brief summary of what this quiz covers." {...field} />
+                  <Textarea placeholder="A brief summary of what this quiz covers." {...field} value={field.value ?? ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -209,7 +234,16 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
               <FormItem>
                 <FormLabel>Duration (minutes, Optional)</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="10" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                  <Input 
+                    type="number" 
+                    placeholder="10" 
+                    {...field} 
+                    value={field.value ?? ''}
+                    onChange={e => {
+                      const num = parseInt(e.target.value, 10);
+                      field.onChange(isNaN(num) ? undefined : num);
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -247,7 +281,7 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{associationType === "lesson" ? "Select Lesson" : "Select Lecture"}</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={`Select a ${associationType}`} />
@@ -287,21 +321,21 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
             <Button
               type="button"
               variant="outline"
-              onClick={() => append({ id: uuidv4(), text: "", type: "multiple_choice", options: [{id: uuidv4(), text:""}, {id:uuidv4(), text:""}], correctAnswer: "" })}
+              onClick={() => append(createDefaultQuestion())}
             >
               <PlusCircle className="h-4 w-4 mr-1" /> Add Question
             </Button>
-             {errors.questions && typeof errors.questions === 'object' && !Array.isArray(errors.questions) && (
-                <p className="text-sm font-medium text-destructive mt-2">{(errors.questions as any).message}</p>
+             {errors.questions && typeof errors.questions === 'object' && !Array.isArray(errors.questions) && errors.questions.message && (
+                <p className="text-sm font-medium text-destructive mt-2">{errors.questions.message}</p>
             )}
             {errors.questions && Array.isArray(errors.questions) && errors.questions.length > 0 && (
-                 <p className="text-sm font-medium text-destructive mt-2">Please ensure all questions are complete.</p>
+                 <p className="text-sm font-medium text-destructive mt-2">One or more questions have errors. Please review them.</p>
             )}
           </div>
 
           <div className="flex gap-2">
             <Button type="submit" disabled={isSubmitting || isGeneratingAIQuestions}>
-              {isSubmitting ? (initialData ? "Updating..." : "Creating...") : (initialData ? "Update Quiz" : "Create Quiz")}
+              {isSubmitting ? (quizId ? "Updating..." : "Creating...") : (quizId ? "Update Quiz" : "Create Quiz")}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting || isGeneratingAIQuestions}>
               Cancel
@@ -312,3 +346,6 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
     </FormProvider>
   );
 }
+
+
+    
