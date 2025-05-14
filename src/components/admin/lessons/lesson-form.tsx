@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Trash2, PlusCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { addLesson, updateLesson } from "@/services/lessonService"; 
+import Link from "next/link";
 
 const lessonContentBlockSchema = z.object({
   id: z.string().default(() => uuidv4()),
@@ -205,6 +206,7 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
                          {form.watch(`content.${index}.type`) === 'text' && (
                             <FormDescription>
                                 Markdown is supported: bold, italic, lists, etc. Single newlines create line breaks.
+                                For a full guide, see <Link href="https://www.markdownguide.org/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">The Markdown Guide</Link>.
                                 <br />
                                 For tables, use Markdown syntax:
                                 <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
