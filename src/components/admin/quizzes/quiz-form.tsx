@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Quiz, Question, Lecture, Lesson, QuizFormShape } from "@/types"; // Using QuizFormShape
+import type { Quiz, Question, Lecture, Lesson, QuizFormShape } from "@/types";
 import { useForm, type SubmitHandler, FormProvider, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { QuestionForm } from "./question-form";
 import { v4 as uuidv4 } from "uuid";
 import { PlusCircle, Bot } from "lucide-react";
 import { generateQuizQuestions, type GenerateQuizQuestionsInput } from "@/ai/flows/generate-quiz-questions";
-import { addQuiz, updateQuiz } from "@/services/quizService"; // Import services
+import { addQuiz, updateQuiz } from "@/services/quizService";
 import { useState } from "react";
 
 
@@ -30,8 +30,11 @@ const questionSchema = z.object({
   text: z.string().min(5, "Question text must be at least 5 characters."),
   type: z.enum(["true_false", "multiple_choice"]),
   options: z.array(questionOptionSchema),
-  correctAnswer: z.string().min(1, "A correct answer must be selected or provided."),
-  explanation: z.string().optional(),
+  correctAnswer: z.string({ 
+    required_error: "A correct answer selection is required.",
+    invalid_type_error: "Correct answer must be a string." 
+  }).min(1, { message: "A correct answer must be selected." }), // Ensures it's not an empty string
+  explanation: z.string().optional().or(z.literal('')),
 }).superRefine((data, ctx) => {
   if (data.type === "multiple_choice") {
     if (data.options.length < 2) {
@@ -41,50 +44,60 @@ const questionSchema = z.object({
         type: "array",
         inclusive: true,
         message: "Multiple choice questions require at least two options.",
-        path: ["options"], 
+        path: ["options"],
       });
+      return; // Stop further checks for this question if options are insufficient
     }
-    // Individual option text emptiness is handled by questionOptionSchema
-
-    if (!data.correctAnswer && data.options.length >=2) { 
+    
+    let allOptionsHaveText = true;
+    data.options.forEach((option, index) => {
+      if (!option.text || option.text.trim() === "") { // Check for null, undefined, or empty string
+        allOptionsHaveText = false;
         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "A correct answer must be selected from the options.",
-            path: ["correctAnswer"],
+          code: z.ZodIssueCode.custom,
+          message: "Option text cannot be empty.",
+          path: [`options`, index, "text"],
         });
-    } else if (data.options.length > 0 && !data.options.some(opt => opt.id === data.correctAnswer)) {
-      // This checks if correctAnswer is a valid ID from the current options.
-      // Only trigger if options array isn't empty and correctAnswer isn't among them.
+      }
+    });
+
+    if (!allOptionsHaveText) {
+      return; // Stop further checks if option texts are invalid
+    }
+    
+    // The .min(1) on `correctAnswer` string schema now handles the "nothing selected" (empty string) case.
+    // No specific check for `!data.correctAnswer` is needed here for emptiness.
+    // We still might want to check if the ID is valid among options IF that was a requirement, but it was removed.
+
+  } else if (data.type === "true_false") {
+    if (data.correctAnswer !== "true" && data.correctAnswer !== "false") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "The selected correct answer is not one of the provided options.",
-        path: ["correctAnswer"], 
+        message: "For True/False questions, the answer must be 'true' or 'false'.",
+        path: ["correctAnswer"],
       });
     }
   }
-  // For true_false, correctAnswer is validated by z.string().min(1)
-  // and should be "true" or "false" based on QuestionForm logic.
 });
 
 
 // This is for form validation
 const quizFormValidationSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
-  description: z.string().optional(),
+  description: z.string().optional().or(z.literal('')),
   associationType: z.enum(["lesson", "lecture", "none"]).default("none"),
   associatedId: z.string().optional(),
   questions: z.array(questionSchema).min(1, "A quiz must have at least one question."),
   durationMinutes: z.coerce.number().optional(),
 });
 
-// This type is inferred from the validation schema
 export type QuizFormData = z.infer<typeof quizFormValidationSchema>;
 
 interface QuizFormProps {
-  initialData?: Quiz | null; // Full Quiz object for initial data
+  initialData?: Quiz | null;
   lectures: Pick<Lecture, 'id' | 'title'>[];
   lessons: Pick<Lesson, 'id' | 'title' | 'lectureId' | 'content'>[];
-  quizId?: string; // For updates
+  quizId?: string;
 }
 
 const createDefaultQuestion = (): Question => {
@@ -97,7 +110,7 @@ const createDefaultQuestion = (): Question => {
       { id: defaultFirstOptionId, text: "" },
       { id: uuidv4(), text: "" }
     ],
-    correctAnswer: defaultFirstOptionId,
+    correctAnswer: defaultFirstOptionId, // Default to first option's ID
     explanation: "",
   };
 };
@@ -118,23 +131,23 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
       associatedId: defaultAssociatedId,
       questions: initialData?.questions && initialData.questions.length > 0 
         ? initialData.questions.map(q => {
-            let mappedOptions = q.options ? q.options.map(opt => ({ id: opt.id || uuidv4(), text: opt.text || "" })) : [];
             let mappedCorrectAnswer = q.correctAnswer;
+            let mappedOptions = (q.options || []).map(opt => ({
+                id: opt.id || uuidv4(),
+                text: opt.text || ""
+            }));
 
             if (q.type === "multiple_choice") {
-              if (mappedOptions.length < 2) {
-                const additionalOptionsNeeded = 2 - mappedOptions.length;
-                for (let i = 0; i < additionalOptionsNeeded; i++) {
-                  mappedOptions.push({ id: uuidv4(), text: "" });
+                while (mappedOptions.length < 2) {
+                    mappedOptions.push({ id: uuidv4(), text: "" });
                 }
-              }
-              if (!mappedOptions.some(opt => opt.id === mappedCorrectAnswer)) {
-                mappedCorrectAnswer = mappedOptions.length > 0 ? mappedOptions[0].id : ""; 
-              }
+                if (!mappedCorrectAnswer || !mappedOptions.some(opt => opt.id === mappedCorrectAnswer) ) {
+                    mappedCorrectAnswer = mappedOptions.length > 0 ? mappedOptions[0].id : ""; 
+                }
             } else if (q.type === "true_false") {
-              if (mappedCorrectAnswer !== "true" && mappedCorrectAnswer !== "false") {
-                mappedCorrectAnswer = "true"; 
-              }
+                if (mappedCorrectAnswer !== "true" && mappedCorrectAnswer !== "false") {
+                    mappedCorrectAnswer = "true";
+                }
             }
             
             return {
@@ -142,7 +155,7 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
               text: q.text || "",
               type: q.type,
               options: mappedOptions,
-              correctAnswer: mappedCorrectAnswer || (q.type === "true_false" ? "true" : ""),
+              correctAnswer: mappedCorrectAnswer,
               explanation: q.explanation || "",
             };
           })
@@ -163,13 +176,13 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
 
   const handleActualSubmit: SubmitHandler<QuizFormData> = async (data) => {
     try {
-      if (quizId && initialData) { // Editing
+      if (quizId && initialData) {
         await updateQuiz(quizId, data);
         toast({
           title: "Quiz Updated",
           description: `Quiz "${data.title}" has been successfully updated.`,
         });
-      } else { // Creating
+      } else {
         await addQuiz(data); 
         toast({
           title: "Quiz Created",
@@ -215,14 +228,15 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
         const output = await generateQuizQuestions(input);
         
         const newAIQuestions: Question[] = output.questions.map(aiQ => {
-            const options: {id: string, text: string}[] = aiQ.options.map(optText => ({id: uuidv4(), text: optText }));
-            const correctOption = options.find(opt => opt.text === aiQ.correctAnswer);
+            const optionsWithIds: {id: string, text: string}[] = aiQ.options.map(optText => ({id: uuidv4(), text: optText }));
+            const correctOption = optionsWithIds.find(opt => opt.text === aiQ.correctAnswer);
+            
             return {
                 id: uuidv4(),
                 text: aiQ.question,
                 type: "multiple_choice",
-                options: options,
-                correctAnswer: correctOption ? correctOption.id : (options.length > 0 ? options[0].id : ""),
+                options: optionsWithIds,
+                correctAnswer: correctOption ? correctOption.id : (optionsWithIds.length > 0 ? optionsWithIds[0].id : ""),
                 explanation: `AI Generated: Correct answer is ${aiQ.correctAnswer}`,
             };
         });
@@ -282,8 +296,13 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
                     {...field} 
                     value={field.value ?? ''}
                     onChange={e => {
-                      const num = parseInt(e.target.value, 10);
-                      field.onChange(isNaN(num) ? undefined : num);
+                      const stringValue = e.target.value;
+                      if (stringValue === '') {
+                        field.onChange(undefined);
+                      } else {
+                        const num = parseInt(stringValue, 10);
+                        field.onChange(isNaN(num) ? undefined : num);
+                      }
                     }}
                   />
                 </FormControl>
@@ -291,7 +310,6 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
               </FormItem>
             )}
           />
-
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
@@ -367,8 +385,8 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
             >
               <PlusCircle className="h-4 w-4 mr-1" /> Add Question
             </Button>
-             {errors.questions && typeof errors.questions === 'object' && !Array.isArray(errors.questions) && errors.questions.message && (
-                <p className="text-sm font-medium text-destructive mt-2">{errors.questions.message}</p>
+             {errors.questions && typeof errors.questions === 'object' && !Array.isArray(errors.questions) && (errors.questions as any).message && (
+                <p className="text-sm font-medium text-destructive mt-2">{(errors.questions as any).message}</p>
             )}
             {errors.questions && Array.isArray(errors.questions) && errors.questions.length > 0 && (
                  <p className="text-sm font-medium text-destructive mt-2">One or more questions have errors. Please review them.</p>
@@ -389,7 +407,3 @@ export function QuizForm({ initialData, lectures, lessons, quizId }: QuizFormPro
   );
 }
 
-
-    
-
-    
