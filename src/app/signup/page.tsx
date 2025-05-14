@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Logo } from '@/components/logo';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
+import { useLanguage } from '@/contexts/language-context'; // Added
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,7 @@ export default function SignUpPage() {
   const { signUp, user, loading, error, clearError } = useAuth();
   const router = useRouter();
   const [clientError, setClientError] = useState<string | null>(null);
+  const { t } = useLanguage(); // Added
 
   useEffect(() => {
     if (user) {
@@ -38,11 +40,11 @@ export default function SignUpPage() {
     setClientError(null);
 
     if (password !== confirmPassword) {
-      setClientError("Passwords do not match.");
+      setClientError(t('signup.passwordsDoNotMatch'));
       return;
     }
     if (password.length < 6) {
-      setClientError("Password should be at least 6 characters long.");
+      setClientError(t('signup.passwordTooShort'));
       return;
     }
 
@@ -67,24 +69,24 @@ export default function SignUpPage() {
       </div>
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">Create Your Account</CardTitle>
-          <CardDescription>Join ChemLearn and start your chemistry adventure.</CardDescription>
+          <CardTitle className="text-2xl font-bold text-primary">{t('signup.createAccount')}</CardTitle>
+          <CardDescription>{t('signup.joinChemLearn')}</CardDescription>
         </CardHeader>
         <CardContent>
           {(error || clientError) && (
             <Alert variant="destructive" className="mb-4">
               <Terminal className="h-4 w-4" />
-              <AlertTitle>Sign Up Failed</AlertTitle>
+              <AlertTitle>{t('signup.failed')}</AlertTitle>
               <AlertDescription>{error || clientError}</AlertDescription>
             </Alert>
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('signup.emailLabel')}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t('signup.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -92,11 +94,11 @@ export default function SignUpPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('signup.passwordLabel')}</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="•••••••• (min. 6 characters)"
+                placeholder={t('signup.passwordPlaceholderSecure')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -104,11 +106,11 @@ export default function SignUpPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Label htmlFor="confirm-password">{t('signup.confirmPasswordLabel')}</Label>
               <Input
                 id="confirm-password"
                 type="password"
-                placeholder="••••••••"
+                placeholder={t('signup.confirmPasswordPlaceholder')}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -116,15 +118,15 @@ export default function SignUpPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Sign Up'}
+              {loading ? t('signup.creatingAccountButton') : t('signup.signUpButton')}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="text-center text-sm">
           <p className="text-muted-foreground">
-            Already have an account?{' '}
+            {t('signup.alreadyHaveAccount')}{' '}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              Sign In
+              {t('signup.signInLink')}
             </Link>
           </p>
         </CardFooter>

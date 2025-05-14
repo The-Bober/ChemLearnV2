@@ -16,9 +16,11 @@ import {
 import { LogOut, User, Settings, CreditCard, LogIn, UserPlus, CheckSquare, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/language-context"; // Added
 
 export function UserNav() {
   const { user, signOut, loading, completedQuizzesCount, loadingCompletedQuizzesCount } = useAuth();
+  const { t } = useLanguage(); // Added
 
   const handleLogout = async () => {
     await signOut();
@@ -41,13 +43,13 @@ export function UserNav() {
         <Button variant="outline" asChild size="sm">
           <Link href="/login">
             <LogIn className="mr-2 h-4 w-4" />
-            Login
+            {t('userNav.login')}
           </Link>
         </Button>
         <Button asChild size="sm">
           <Link href="/signup">
             <UserPlus className="mr-2 h-4 w-4" />
-            Sign Up
+            {t('userNav.signUp')}
           </Link>
         </Button>
       </div>
@@ -81,7 +83,7 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-default focus:bg-transparent">
           <CheckSquare className="mr-2 h-4 w-4 text-primary" />
-          <span>Quizzes Completed:</span>
+          <span>{t('userNav.quizzesCompleted')}</span>
           {loadingCompletedQuizzesCount ? (
             <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />
           ) : (
@@ -94,21 +96,21 @@ export function UserNav() {
         <DropdownMenuGroup>
           <DropdownMenuItem disabled> {/* Placeholder */}
             <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+            <span>{t('userNav.profile')}</span>
           </DropdownMenuItem>
           <DropdownMenuItem disabled> {/* Placeholder */}
             <CreditCard className="mr-2 h-4 w-4" />
-            <span>Billing</span>
+            <span>{t('userNav.billing')}</span>
           </DropdownMenuItem>
           <DropdownMenuItem disabled> {/* Placeholder */}
             <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+            <span>{t('userNav.settings')}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          <span>{t('userNav.logout')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

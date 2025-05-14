@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Logo } from '@/components/logo';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
+import { useLanguage } from '@/contexts/language-context'; // Added
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/learn';
+  const { t } = useLanguage(); // Added
 
   useEffect(() => {
     if (user) {
@@ -57,24 +59,24 @@ export default function LoginPage() {
       </div>
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">Welcome Back!</CardTitle>
-          <CardDescription>Sign in to continue your ChemLearn journey.</CardDescription>
+          <CardTitle className="text-2xl font-bold text-primary">{t('login.welcomeBack')}</CardTitle>
+          <CardDescription>{t('login.signInContinue')}</CardDescription>
         </CardHeader>
         <CardContent>
           {error && (
             <Alert variant="destructive" className="mb-4">
               <Terminal className="h-4 w-4" />
-              <AlertTitle>Login Failed</AlertTitle>
+              <AlertTitle>{t('login.failed')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('login.emailLabel')}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t('login.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -82,11 +84,11 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('login.passwordLabel')}</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder={t('login.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -94,15 +96,15 @@ export default function LoginPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing In...' : 'Sign In'}
+              {loading ? t('login.signingInButton') : t('login.signInButton')}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="text-center text-sm">
           <p className="text-muted-foreground">
-            Don&apos;t have an account?{' '}
+            {t('login.dontHaveAccount')}{' '}
             <Link href="/signup" className="font-medium text-primary hover:underline">
-              Sign Up
+              {t('login.signUpLink')}
             </Link>
           </p>
         </CardFooter>
@@ -110,3 +112,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
