@@ -6,20 +6,22 @@ import { Logo } from "@/components/logo";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
-import { useLanguage } from "@/contexts/language-context"; // Added
+import { useLanguage } from "@/contexts/language-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LanguageSwitcher } from "@/components/language-switcher"; // Added
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ModeToggle } from "@/components/mode-toggle"; // Added ModeToggle
 
 export default function HomePage() {
   const { user, loading } = useAuth();
-  const { t } = useLanguage(); // Added
+  const { t } = useLanguage();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4">
       <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-        <Logo iconSize={32} textSize="text-2xl" />
+        <Logo iconSize={32} textSize="text-2xl" href="/" /> {/* Ensure href is explicitly set */}
         <div className="flex items-center gap-2">
-          <LanguageSwitcher /> {/* Added LanguageSwitcher to public page header as well */}
+          <ModeToggle /> {/* Added ModeToggle */}
+          <LanguageSwitcher />
         </div>
       </header>
 
