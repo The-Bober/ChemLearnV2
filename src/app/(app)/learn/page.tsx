@@ -6,17 +6,14 @@ import Image from "next/image";
 import { ArrowRight, BookOpen, Atom, FlaskConical } from "lucide-react";
 import { getAllLectures } from "@/services/lectureService";
 import type { Lecture } from "@/types";
-import { LanguageContext } from "@/contexts/language-context"; // Direct import for server component
-import { useContext } from "react"; // For server component to use context, not ideal, see note below.
 // For proper server-side i18n, you'd typically pass locale and translations from layout/page props
 // or use a dedicated i18n library configured for server components.
-// This direct context usage in a server component is a simplification for the prototype.
-import { translationsStore } from "@/contexts/language-context"; // Directly access translations
+import { translationsStore, type Locale } from "@/lib/translations"; // Import from new location
 
 // Helper to get translations on the server for a specific locale
 // In a real app, this would be more robust, likely involving loading JSON files.
 const getTranslationsForServer = (locale: string = 'en') => {
-  return translationsStore[locale as keyof typeof translationsStore] || translationsStore['en'];
+  return translationsStore[locale as Locale] || translationsStore['en'];
 };
 
 

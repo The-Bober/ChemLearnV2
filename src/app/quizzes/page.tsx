@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight, HelpCircle, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-// For server component i18n, direct import or passed props are alternatives. See note in learn/page.tsx
-import { translationsStore } from "@/contexts/language-context"; 
+// For server component i18n.
+import { translationsStore, type Locale } from "@/lib/translations"; // Import from new location
 
 // Helper to get translations on the server for a specific locale
 const getTranslationsForServer = (locale: string = 'en') => {
-  return translationsStore[locale as keyof typeof translationsStore] || translationsStore['en'];
+  return translationsStore[locale as Locale] || translationsStore['en'];
 };
 
 

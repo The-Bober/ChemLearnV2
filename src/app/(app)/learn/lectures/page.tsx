@@ -6,12 +6,12 @@ import Image from "next/image";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { getAllLectures } from "@/services/lectureService";
 import type { Lecture } from "@/types";
-// For server component i18n, direct import or passed props are alternatives. See note in learn/page.tsx
-import { translationsStore } from "@/contexts/language-context"; 
+// For server component i18n.
+import { translationsStore, type Locale } from "@/lib/translations"; // Import from new location
 
 // Helper to get translations on the server for a specific locale
 const getTranslationsForServer = (locale: string = 'en') => {
-  return translationsStore[locale as keyof typeof translationsStore] || translationsStore['en'];
+  return translationsStore[locale as Locale] || translationsStore['en'];
 };
 
 export default async function AllLecturesPage() {
