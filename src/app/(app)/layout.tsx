@@ -17,10 +17,10 @@ import {
 import { MainNav } from "@/components/main-nav";
 import { UserNav } from "@/components/user-nav";
 import { ModeToggle } from "@/components/mode-toggle";
-import { LanguageSwitcher } from "@/components/language-switcher"; // Added
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react"; // Removed Home, Settings
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -88,7 +88,7 @@ function SidebarHSN({ children }: PropsWithChildren) {
           <div className="flex items-center gap-2">
             <UserNav />
             <ModeToggle />
-            <LanguageSwitcher /> {/* Added LanguageSwitcher */}
+            <LanguageSwitcher /> 
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:p-6">
@@ -98,3 +98,4 @@ function SidebarHSN({ children }: PropsWithChildren) {
     </>
   );
 }
+

@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Logo } from '@/components/logo';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
-import { useLanguage } from '@/contexts/language-context'; // Added
+import { useLanguage } from '@/contexts/language-context';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -21,7 +21,7 @@ export default function SignUpPage() {
   const { signUp, user, loading, error, clearError } = useAuth();
   const router = useRouter();
   const [clientError, setClientError] = useState<string | null>(null);
-  const { t } = useLanguage(); // Added
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (user) {
@@ -48,10 +48,9 @@ export default function SignUpPage() {
       return;
     }
 
-    const signedUpUser = await signUp(email, password);
-    if (signedUpUser) {
-      router.push('/learn');
-    }
+    await signUp(email, password);
+    // Navigation is now handled by the useEffect above,
+    // which waits for the AuthContext 'user' state to update.
   };
   
   if (loading && !user) {
@@ -59,7 +58,7 @@ export default function SignUpPage() {
   }
 
   if (user) {
-    return null; // Redirect handled by useEffect
+    return null; 
   }
 
   return (
@@ -134,3 +133,4 @@ export default function SignUpPage() {
     </div>
   );
 }
+

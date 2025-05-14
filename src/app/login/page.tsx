@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Logo } from '@/components/logo';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
-import { useLanguage } from '@/contexts/language-context'; // Added
+import { useLanguage } from '@/contexts/language-context';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -21,7 +21,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/learn';
-  const { t } = useLanguage(); // Added
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (user) {
@@ -30,7 +30,6 @@ export default function LoginPage() {
   }, [user, router, redirectPath]);
   
   useEffect(() => {
-    // Clear errors when the component mounts or when email/password changes
     clearError();
   }, [email, password, clearError]);
 
@@ -38,18 +37,17 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearError();
-    const loggedInUser = await signIn(email, password);
-    if (loggedInUser) {
-      router.push(redirectPath);
-    }
+    await signIn(email, password);
+    // Navigation is now handled by the useEffect above,
+    // which waits for the AuthContext 'user' state to update.
   };
   
-  if (loading && !user) { // Show loading only if not yet authenticated and loading
+  if (loading && !user) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  if (user) { // If user becomes available (e.g. already logged in and state loaded)
-    return null; // Redirect is handled by useEffect
+  if (user) { 
+    return null; 
   }
 
   return (
