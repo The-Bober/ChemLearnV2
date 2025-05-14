@@ -53,8 +53,8 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
       order: initialData?.order || 1,
       estimatedTimeMinutes: initialData?.estimatedTimeMinutes || undefined,
       content: initialData?.content && initialData.content.length > 0 
-        ? initialData.content.map(c => ({...c, id: c.id || uuidv4()})) 
-        : [{ id: uuidv4(), type: "text", value: "" }],
+        ? initialData.content.map(c => ({...c, id: c.id || uuidv4(), altText: c.altText || undefined })) // Ensure altText is undefined if not present
+        : [{ id: uuidv4(), type: "text", value: "", altText: undefined }],
     },
   });
 
@@ -154,7 +154,25 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
             <FormItem>
               <FormLabel>Estimated Time (minutes, Optional)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="15" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                <Input
+                  type="number"
+                  placeholder="15"
+                  name={field.name}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  disabled={field.disabled}
+                  value={field.value ?? ''} // Ensure input's value prop is never undefined/null
+                  onChange={e => {
+                    const stringValue = e.target.value;
+                    if (stringValue === '') {
+                      field.onChange(undefined); // RHF state to undefined if input is cleared
+                    } else {
+                      const num = parseInt(stringValue, 10);
+                      // RHF state to number, or undefined if parsing fails (e.g. "abc")
+                      field.onChange(isNaN(num) ? undefined : num);
+                    }
+                  }}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -164,16 +182,16 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
         <div>
           <FormLabel>Content Blocks</FormLabel>
           <div className="space-y-4 mt-2">
-            {fields.map((field, index) => (
-              <Card key={field.id} className="p-4">
+            {fields.map((fieldItem, index) => (
+              <Card key={fieldItem.id} className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <FormField
                     control={form.control}
                     name={`content.${index}.type`}
-                    render={({ field: typeField }) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Block Type</FormLabel>
-                        <Select onValueChange={typeField.onChange} defaultValue={typeField.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select block type" />
@@ -193,14 +211,14 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
                   <FormField
                     control={form.control}
                     name={`content.${index}.value`}
-                    render={({ field: valueField }) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Value</FormLabel>
                         <FormControl>
                           {form.watch(`content.${index}.type`) === 'text' ? (
-                            <Textarea placeholder="Enter text content (Markdown supported)..." {...valueField} rows={8}/>
+                            <Textarea placeholder="Enter text content (Markdown supported)..." {...field} rows={8}/>
                           ) : (
-                            <Input placeholder="Enter URL or formula..." {...valueField} />
+                            <Input placeholder="Enter URL or formula..." {...field} value={field.value ?? ''} />
                           )}
                         </FormControl>
                          {form.watch(`content.${index}.type`) === 'text' && (
@@ -226,11 +244,11 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
                    <FormField
                     control={form.control}
                     name={`content.${index}.altText`}
-                    render={({ field: altTextField }) => (
+                    render={({ field }) => (
                       <FormItem className="mt-4">
                         <FormLabel>Image Alt Text (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Descriptive text for the image" {...altTextField} />
+                          <Input placeholder="Descriptive text for the image" {...field} value={field.value ?? ''}/>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -251,7 +269,7 @@ export function LessonForm({ initialData, lectures, lessonId }: LessonFormProps)
             <Button
               type="button"
               variant="outline"
-              onClick={() => append({ id: uuidv4(), type: "text", value: "" })}
+              onClick={() => append({ id: uuidv4(), type: "text", value: "", altText: undefined })}
             >
               <PlusCircle className="h-4 w-4 mr-1" /> Add Content Block
             </Button>
