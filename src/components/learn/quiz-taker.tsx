@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/auth-context"; // Import useAuth
 import { logQuizCompletion } from "@/services/quizService"; // Import quiz service
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 interface QuizTakerProps {
   quiz: Quiz;
@@ -36,6 +37,7 @@ interface Result extends Question {
 export function QuizTaker({ quiz }: QuizTakerProps) {
   const { user, refreshCompletedQuizzesCount } = useAuth(); // Get user and refresh function
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [answers, setAnswers] = useState<Record<string, string>>({}); // questionId -> selectedOptionId or "true"/"false"
   const [timeLeft, setTimeLeft] = useState<number>((quiz.durationMinutes || 10) * 60);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
@@ -67,7 +69,7 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
       return { ...q, userAnswer: userAnswerValue, isCorrect, selectedOptionText, correctOptionText };
     });
     setResults(detailedResults);
-    const calculatedScore = (correctAnswers / quiz.questions.length) * 100;
+    const calculatedScore = (quiz.questions.length > 0 ? (correctAnswers / quiz.questions.length) : 0) * 100;
     setCurrentScore(calculatedScore);
     setTimeLeft(0); // Stop timer
 
@@ -76,19 +78,19 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
         await logQuizCompletion(user.uid, quiz.id, calculatedScore);
         await refreshCompletedQuizzesCount(); // Refresh count in AuthContext
         toast({
-          title: "Quiz Submitted",
-          description: "Your results have been recorded.",
+          title: t('quiz.toastSubmittedTitle'),
+          description: t('quiz.toastSubmittedDescription'),
         });
       } catch (error) {
         console.error("Failed to log quiz completion:", error);
         toast({
-          title: "Submission Error",
-          description: "Could not record your quiz completion. Please try again later.",
+          title: t('quiz.toastErrorTitle'),
+          description: t('quiz.toastErrorDescription'),
           variant: "destructive",
         });
       }
     }
-  }, [answers, quiz, user, refreshCompletedQuizzesCount, toast]);
+  }, [answers, quiz, user, refreshCompletedQuizzesCount, toast, t]);
 
   useEffect(() => {
     if (isSubmitted || timeLeft <= 0 || !showInfo) return;
@@ -117,27 +119,27 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
         <Card className="max-w-2xl mx-auto shadow-xl">
             <CardHeader>
                 <CardTitle className="text-3xl text-primary">{quiz.title}</CardTitle>
-                <CardDescription className="text-lg">{quiz.description || "Prepare to test your knowledge."}</CardDescription>
+                <CardDescription className="text-lg">{quiz.description || t('quiz.infoCardDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <Alert>
                     <Info className="h-4 w-4" />
-                    <AlertTitle>Quiz Instructions</AlertTitle>
+                    <AlertTitle>{t('quiz.infoCardTitle')}</AlertTitle>
                     <AlertDescription>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li>This quiz has <strong>{quiz.questions.length} questions</strong>.</li>
-                            <li>You have <strong>{quiz.durationMinutes || 10} minutes</strong> to complete it.</li>
-                            <li>Your answers will be submitted automatically when the time runs out.</li>
-                            <li>Once submitted, you cannot change your answers.</li>
+                            <li dangerouslySetInnerHTML={{ __html: t('quiz.instructionNumQuestions').replace('{count}', quiz.questions.length.toString()) }} />
+                            <li dangerouslySetInnerHTML={{ __html: t('quiz.instructionDuration').replace('{duration}', (quiz.durationMinutes || 10).toString()) }} />
+                            <li>{t('quiz.instructionAutoSubmit')}</li>
+                            <li>{t('quiz.instructionNoChange')}</li>
                         </ul>
                     </AlertDescription>
                 </Alert>
                  <Button onClick={() => setShowInfo(false)} className="w-full" size="lg">
-                    Start Quiz
+                    {t('quiz.startQuiz')}
                 </Button>
                  <Button variant="outline" asChild className="w-full mt-2">
                     <Link href={quiz.lessonId ? `/learn/lessons/${quiz.lessonId}` : (quiz.lectureId ? `/learn/lectures/${quiz.lectureId}`: "/quizzes")}>
-                        <ChevronLeft className="mr-2 h-4 w-4" /> Back to Learning
+                        <ChevronLeft className="mr-2 h-4 w-4" /> {t('quiz.backToLearning')}
                     </Link>
                 </Button>
             </CardContent>
@@ -150,9 +152,9 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
     return (
       <Card className="max-w-2xl mx-auto shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl text-primary">Quiz Results: {quiz.title}</CardTitle>
+          <CardTitle className="text-3xl text-primary">{t('quiz.resultsTitle').replace('{quizTitle}', quiz.title)}</CardTitle>
           <CardDescription className="text-xl">
-            Your Score: <span className={`font-bold ${currentScore >= 70 ? 'text-green-500' : 'text-red-500'}`}>{currentScore.toFixed(2)}%</span>
+            {t('quiz.yourScore')} <span className={`font-bold ${currentScore >= 70 ? 'text-green-500' : 'text-red-500'}`}>{currentScore.toFixed(2)}%</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -161,31 +163,31 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center">
                   {res.isCorrect ? <CheckCircle className="h-5 w-5 mr-2 text-green-500" /> : <XCircle className="h-5 w-5 mr-2 text-red-500" />}
-                  Question {index + 1}: {res.text}
+                  {t('quiz.question')} {index + 1}: {res.text}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {res.type === "multiple_choice" ? (
                     <>
-                        <p>Your answer: <span className={res.isCorrect ? "text-green-600" : "text-red-600"}>{res.selectedOptionText || "Not answered"}</span></p>
-                        {!res.isCorrect && <p>Correct answer: <span className="text-green-600">{res.correctOptionText}</span></p>}
+                        <p>{t('quiz.yourAnswer')} <span className={res.isCorrect ? "text-green-600" : "text-red-600"}>{res.selectedOptionText || t('quiz.notAnswered')}</span></p>
+                        {!res.isCorrect && <p>{t('quiz.correctAnswer')} <span className="text-green-600">{res.correctOptionText}</span></p>}
                     </>
                 ) : ( // true_false
                     <>
-                        <p>Your answer: <span className={res.isCorrect ? "text-green-600" : "text-red-600"}>{res.userAnswer || "Not answered"}</span></p>
-                        {!res.isCorrect && <p>Correct answer: <span className="text-green-600">{res.correctAnswer}</span></p>}
+                        <p>{t('quiz.yourAnswer')} <span className={res.isCorrect ? "text-green-600" : "text-red-600"}>{res.userAnswer || t('quiz.notAnswered')}</span></p>
+                        {!res.isCorrect && <p>{t('quiz.correctAnswer')} <span className="text-green-600">{res.correctAnswer}</span></p>}
                     </>
                 )}
-                {res.explanation && <p className="text-muted-foreground mt-1 pt-1 border-t">Explanation: {res.explanation}</p>}
+                {res.explanation && <p className="text-muted-foreground mt-1 pt-1 border-t">{t('quiz.explanation')} {res.explanation}</p>}
               </CardContent>
             </Card>
           ))}
           <Button asChild className="w-full mt-6">
-            <Link href="/quizzes">Back to Quizzes</Link>
+            <Link href="/quizzes">{t('quiz.backToQuizzes')}</Link>
           </Button>
            {quiz.lessonId && (
             <Button variant="outline" asChild className="w-full mt-2">
-              <Link href={`/learn/lessons/${quiz.lessonId}`}>Back to Lesson</Link>
+              <Link href={`/learn/lessons/${quiz.lessonId}`}>{t('quiz.backToLesson')}</Link>
             </Button>
           )}
         </CardContent>
@@ -204,12 +206,12 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
         {quiz.description && <CardDescription className="text-md">{quiz.description}</CardDescription>}
         <div className="pt-2">
             <div className="flex justify-between items-center mb-1 text-sm text-muted-foreground">
-                <span>Time Remaining:</span>
+                <span>{t('quiz.timeRemaining')}</span>
                 <span className={`font-semibold ${timeLeft < 60 ? 'text-destructive' : 'text-primary'}`}>
                     {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
                 </span>
             </div>
-            <Progress value={progressValue} aria-label="Time remaining" className="h-2" />
+            <Progress value={progressValue} aria-label={t('quiz.timeRemaining')} className="h-2" />
         </div>
       </CardHeader>
       <Separator/>
@@ -217,14 +219,14 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
         {quiz.questions.map((q, index) => (
           <div key={q.id} className="space-y-3 p-4 border rounded-lg shadow-sm bg-card">
             <Label htmlFor={`q-${q.id}`} className="text-lg font-semibold block">
-              Question {index + 1}: {q.text}
+              {t('quiz.question')} {index + 1}: {q.text}
             </Label>
             <RadioGroup
               id={`q-${q.id}`}
               value={answers[q.id]}
               onValueChange={(value) => handleAnswerChange(q.id, value)}
               className="space-y-2"
-              aria-label={`Question ${index + 1}: ${q.text}`}
+              aria-label={`${t('quiz.question')} ${index + 1}: ${q.text}`}
             >
               {q.type === "multiple_choice" ? (
                 q.options.map(opt => (
@@ -249,7 +251,7 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
           </div>
         ))}
         <Button onClick={handleSubmit} disabled={isSubmitted} className="w-full text-lg py-6">
-          {isSubmitted ? "Submitted" : "Submit Quiz"}
+          {isSubmitted ? t('quiz.submitted') : t('quiz.submitQuiz')}
         </Button>
       </CardContent>
     </Card>

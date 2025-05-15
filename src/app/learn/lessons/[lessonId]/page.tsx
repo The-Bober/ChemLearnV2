@@ -10,6 +10,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, FileQuestion, Timer, BookOpen } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
+import { translationsStore, type Locale } from "@/lib/translations";
 // import { Badge } from "@/components/ui/badge"; // Badge not used here
 
 interface LessonPageProps {
@@ -17,6 +18,11 @@ interface LessonPageProps {
     lessonId: string;
   };
 }
+
+// Helper to get translations on the server for a specific locale
+const getTranslationsForServer = (locale: string = 'en') => {
+  return translationsStore[locale as Locale] || translationsStore['en'];
+};
 
 async function getLessonDetails(lessonId: string): Promise<{
   lesson: Lesson | null;
@@ -60,6 +66,7 @@ async function getLessonDetails(lessonId: string): Promise<{
 
 export default async function LessonPage({ params }: LessonPageProps) {
   const { lesson, quiz, lectureTitle, lectureId, previousLessonId, nextLessonId } = await getLessonDetails(params.lessonId);
+  const t = getTranslationsForServer('en'); // Assuming 'en' for now, or pass locale
 
   if (!lesson) {
     notFound();
@@ -71,14 +78,14 @@ export default async function LessonPage({ params }: LessonPageProps) {
         <CardHeader>
           {lectureTitle && lectureId && (
              <Link href={`/learn/lectures/${lectureId}`} className="text-sm text-primary hover:underline flex items-center mb-2">
-                <BookOpen className="mr-2 h-4 w-4" /> Back to {lectureTitle}
+                <BookOpen className="mr-2 h-4 w-4" /> {t['lessonDetail.backToLecture']} {lectureTitle}
             </Link>
           )}
           <CardTitle className="text-4xl font-bold text-primary">{lesson.title}</CardTitle>
           {lesson.estimatedTimeMinutes && (
             <div className="flex items-center text-muted-foreground mt-2">
               <Timer className="mr-2 h-5 w-5" />
-              <span>Estimated read time: {lesson.estimatedTimeMinutes} minutes</span>
+              <span>{t['lessonDetail.estimatedTime']} {lesson.estimatedTimeMinutes} {t['lessonDetail.minutes']}</span>
             </div>
           )}
         </CardHeader>
@@ -95,7 +102,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
             {previousLessonId ? (
             <Button variant="outline" asChild className="flex-1 sm:flex-none">
                 <Link href={`/learn/lessons/${previousLessonId}`}>
-                <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                <ChevronLeft className="mr-2 h-4 w-4" /> {t['lessonDetail.previousLesson']}
                 </Link>
             </Button>
             ) : <div className="flex-1 sm:flex-none"/>}
@@ -103,7 +110,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
             {nextLessonId ? (
             <Button variant="outline" asChild className="flex-1 sm:flex-none">
                 <Link href={`/learn/lessons/${nextLessonId}`}>
-                Next <ChevronRight className="ml-2 h-4 w-4" />
+                {t['lessonDetail.nextLesson']} <ChevronRight className="ml-2 h-4 w-4" />
                 </Link>
             </Button>
             ) : <div className="flex-1 sm:flex-none"/>}
@@ -112,7 +119,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         {quiz && (
           <Button asChild size="lg" className="w-full sm:w-auto mt-4 sm:mt-0">
             <Link href={`/learn/quizzes/${quiz.id}/take`}>
-              <FileQuestion className="mr-2 h-5 w-5" /> Take Quiz
+              <FileQuestion className="mr-2 h-5 w-5" /> {t['lessonDetail.takeQuiz']}
             </Link>
           </Button>
         )}

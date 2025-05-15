@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AlertCircle, ChevronLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { translationsStore, type Locale } from "@/lib/translations";
 
 interface QuizPageProps {
   params: {
@@ -14,8 +15,13 @@ interface QuizPageProps {
   };
 }
 
+const getTranslationsForServer = (locale: string = 'en') => {
+  return translationsStore[locale as Locale] || translationsStore['en'];
+};
+
 export default async function TakeQuizPage({ params }: QuizPageProps) {
   const quiz = await getQuizById(params.quizId);
+  const t = getTranslationsForServer('en'); // Assuming 'en' for now, or pass locale
 
   if (!quiz) {
     notFound();
@@ -27,15 +33,15 @@ export default async function TakeQuizPage({ params }: QuizPageProps) {
         <Card className="w-full max-w-md p-8 shadow-xl">
             <CardHeader>
                 <AlertCircle className="mx-auto h-16 w-16 text-destructive mb-4" />
-                <CardTitle className="text-2xl font-semibold">Quiz Not Ready</CardTitle>
+                <CardTitle className="text-2xl font-semibold">{t['quiz.quizNotReadyTitle']}</CardTitle>
             </CardHeader>
             <CardContent>
                 <CardDescription className="text-lg text-muted-foreground">
-                This quiz &quot;{quiz.title}&quot; currently has no questions. Please check back later or contact an administrator.
+                {t['quiz.quizNotReadyDescription'].replace('{quizTitle}', quiz.title)}
                 </CardDescription>
                 <Button asChild className="mt-6">
                     <Link href="/quizzes">
-                        <ChevronLeft className="mr-2 h-4 w-4"/> Go Back to Quizzes
+                        <ChevronLeft className="mr-2 h-4 w-4"/> {t['quiz.backToQuizzes']}
                     </Link>
                 </Button>
             </CardContent>

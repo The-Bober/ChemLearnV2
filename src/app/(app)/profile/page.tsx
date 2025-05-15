@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, UploadCloud } from "lucide-react";
 import Image from "next/image";
+import { useLanguage } from "@/contexts/language-context";
 
 // Firebase imports - for full implementation
 // import { storage, db, auth } from "@/lib/firebase";
@@ -22,6 +23,7 @@ import Image from "next/image";
 export default function ProfilePage() {
   const { user, loading: authLoading, refreshCompletedQuizzesCount } = useAuth(); // Assuming refresh is available or add a dedicated user refresh
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -44,15 +46,15 @@ export default function ProfilePage() {
   const handleImageUpload = async () => {
     if (!selectedFile || !user) {
       toast({
-        title: "No file selected",
-        description: "Please select an image file to upload.",
+        title: t('profile.noFileSelected'),
+        description: t('profile.noFileSelectedDescription'),
         variant: "destructive",
       });
       return;
     }
 
     setIsUploading(true);
-    toast({ title: "Uploading...", description: "Your new profile picture is being uploaded." });
+    toast({ title: t('profile.uploading'), description: t('profile.uploadingDescription') });
 
     // TODO: Implement actual Firebase Storage upload and profile update
     // This is a placeholder for the actual upload logic.
@@ -80,8 +82,8 @@ export default function ProfilePage() {
 
 
       toast({
-        title: "Profile Picture Updated (Simulated)",
-        description: "Your profile picture has been updated. (This is a simulation)",
+        title: t('profile.uploadSuccess'),
+        description: t('profile.uploadSuccessDescription'),
       });
       // Refresh user state if necessary, AuthContext might need a manual refresh function
       // Or rely on onAuthStateChanged to eventually pick up the change.
@@ -95,8 +97,8 @@ export default function ProfilePage() {
     } catch (error) {
       console.error("Error uploading profile picture:", error);
       toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Could not upload profile picture.",
+        title: t('profile.uploadFailed'),
+        description: error instanceof Error ? error.message : t('profile.uploadFailedDescription'),
         variant: "destructive",
       });
     } finally {
@@ -105,12 +107,12 @@ export default function ProfilePage() {
   };
 
   if (authLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /> {t('profile.loadingUser')}</div>;
   }
 
   if (!user) {
     // This should ideally be handled by the layout, but as a fallback:
-    return <div className="p-4">Please log in to view your profile.</div>;
+    return <div className="p-4">{t('profile.pleaseLogin')}</div>;
   }
 
   const userName = user.displayName || user.email?.split('@')[0] || "User";
@@ -119,19 +121,19 @@ export default function ProfilePage() {
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Your Profile</h1>
-        <p className="text-muted-foreground">Manage your ChemLearn account details.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">{t('profile.title')}</h1>
+        <p className="text-muted-foreground">{t('profile.description')}</p>
       </header>
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-          <CardDescription>View and update your profile picture.</CardDescription>
+          <CardTitle>{t('profile.infoCardTitle')}</CardTitle>
+          <CardDescription>{t('profile.infoCardDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center space-x-6">
             <Avatar className="h-24 w-24 ring-2 ring-primary ring-offset-2">
-              <AvatarImage src={previewUrl || user.photoURL || `https://placehold.co/100x100.png`} alt={userName} data-ai-hint="user large avatar"/>
+              <AvatarImage src={previewUrl || user.photoURL || `https://placehold.co/100x100.png`} alt={userName} data-ai-hint="user avatar large" />
               <AvatarFallback className="text-3xl">{userName.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="space-y-1">
@@ -141,7 +143,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profile-picture">Change Profile Picture</Label>
+            <Label htmlFor="profile-picture">{t('profile.changePictureLabel')}</Label>
             <div className="flex items-center gap-4">
                 <Input
                     id="profile-picture"
@@ -157,17 +159,17 @@ export default function ProfilePage() {
                     ) : (
                     <UploadCloud className="mr-2 h-4 w-4" />
                     )}
-                    {isUploading ? "Uploading..." : "Upload"}
+                    {isUploading ? t('profile.uploadingButton') : t('profile.uploadButton')}
                 </Button>
             </div>
             {previewUrl && selectedFile && (
               <div className="mt-4 p-2 border rounded-md max-w-xs">
-                <p className="text-sm text-muted-foreground mb-2">New image preview:</p>
+                <p className="text-sm text-muted-foreground mb-2">{t('profile.imagePreview')}</p>
                 <Image src={previewUrl} alt="Preview" width={100} height={100} className="rounded-md object-cover" />
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1">
-              TODO: Full Firebase Storage integration is pending. This is a UI placeholder.
+              {t('profile.firebaseTodo')}
             </p>
           </div>
           
