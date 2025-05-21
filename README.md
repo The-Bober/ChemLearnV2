@@ -1,5 +1,12 @@
-# Firebase Studio
+Proiect educațional pentru materia chimie
 
-This is a NextJS starter in Firebase Studio.
+Pentru rulare este necesare package manager `npm`
 
-To get started, take a look at src/app/page.tsx.
+Se executa următoarele comenzi în folder-ul proiectului
+
+```
+npm install
+npm run dev
+```
+
+Se deschide pagina pe http://localhost:9002
